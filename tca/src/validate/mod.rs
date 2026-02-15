@@ -1,15 +1,14 @@
 use tca_types::*;
 use anyhow::{Context, Result};
 use colored::Colorize;
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
-
-
-
-
+#[derive(Debug)]
+enum ValidationIssue {
+    Error(String),
+    Warning(String),
+}
 
 struct ValidationResult {
     issues: Vec<ValidationIssue>,

@@ -26,5 +26,5 @@ name = "basic"
 required-features = ["loader"]
 
 [[example]]
-name = "color_picker"
+name = "picker"
 required-features = ["loader", "widgets"]
