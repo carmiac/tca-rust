@@ -1,0 +1,30 @@
+[package]
+name = "tca-ratatui"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+description = "TCA theme support for Ratatui terminal UI framework"
+
+[dependencies]
+tca-types = { workspace = true }
+tca-loader = { workspace = true, optional = true }
+serde = { workspace = true }
+serde_yaml = { workspace = true }
+ratatui = { workspace = true }
+anyhow = { workspace = true }
+
+[dev-dependencies]
+crossterm = { workspace = true }
+
+[features]
+default = ["loader"]
+loader = ["dep:tca-loader"]
+widgets = []
+
+[[example]]
+name = "basic"
+required-features = ["loader"]
+
+[[example]]
+name = "color_picker"
+required-features = ["loader", "widgets"]

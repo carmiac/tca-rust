@@ -1,0 +1,45 @@
+//! Terminal Colors Architecture (TCA) theme support for ratatui.
+//!
+//! This crate provides utilities for loading and using TCA themes in ratatui applications.
+//!
+//! ## Quick Start
+//!
+//! ```rust,no_run
+//! use tca_ratatui::TcaTheme;
+//! use ratatui::style::Style;
+//!
+//! # fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! // Load a TCA theme from a file
+//! let theme = TcaTheme::from_file("theme.yaml")?;
+//!
+//! // Use ANSI colors
+//! let error_style = Style::default().fg(theme.ansi.red);
+//! let success_style = Style::default().fg(theme.ansi.green);
+//!
+//! // Use semantic colors
+//! if let Some(semantic) = &theme.semantic {
+//!     let error_style = Style::default().fg(semantic.error);
+//!     let warning_style = Style::default().fg(semantic.warning);
+//! }
+//!
+//! // Use UI colors
+//! if let Some(ui) = &theme.ui {
+//!     let bg_style = Style::default().bg(ui.bg_primary);
+//!     let fg_style = Style::default().fg(ui.fg_primary);
+//! }
+//! # Ok(())
+//! # }
+//! ```
+
+mod theme;
+
+#[cfg(feature = "widgets")]
+pub mod widgets;
+
+pub use theme::{Ansi, ColorRamp, Meta, Palette, Semantic, TcaTheme, Ui};
+
+#[cfg(feature = "loader")]
+pub use theme::ThemeLoader;
+
+#[cfg(feature = "widgets")]
+pub use widgets::ColorPicker;

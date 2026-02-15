@@ -1,0 +1,64 @@
+# TCA Rust
+
+Terminal Colors Architecture (TCA) implementation for Rust.
+
+This repository contains the complete Rust ecosystem for TCA themes, including the core CLI tool, type definitions, theme loader, and Ratatui UI library.
+
+## Packages
+
+This workspace contains 4 crates:
+
+- **[tca-types](tca-types/)** - Core types and data structures
+- **[tca-loader](tca-loader/)** - XDG-compliant theme loading
+- **[tca](tca/)** - CLI tool for validation and export  
+- **[tca-ratatui](tca-ratatui/)** - Ratatui UI library with widgets
+
+## Quick Start
+
+### Install the CLI Tool
+
+```bash
+cargo install --path tca
+```
+
+### Use in Your Project
+
+```toml
+# For basic types
+[dependencies]
+tca-types = { path = "../tca-rust/tca-types" }
+
+# For theme loading
+[dependencies]
+tca-loader = { path = "../tca-rust/tca-loader" }
+
+# For Ratatui apps
+[dependencies]
+tca-ratatui = { path = "../tca-rust/tca-ratatui" }
+```
+
+## Development
+
+```bash
+# Build all crates
+cargo build --workspace
+
+# Test all crates
+cargo test --workspace
+
+# Run clippy
+cargo clippy --workspace
+
+# Build CLI tool
+cargo build --release -p tca
+```
+
+## Related Projects
+
+- [tca-themes](https://github.com/yourusername/tca-themes) - Theme collection
+- [tca-go](https://github.com/yourusername/tca-go) - Go implementation
+- [tca-python](https://github.com/yourusername/tca-python) - Python implementation
+
+## License
+
+MIT
