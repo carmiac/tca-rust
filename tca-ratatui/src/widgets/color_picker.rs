@@ -7,6 +7,24 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph, Widget},
 };
 
+/// Displays all color sections of a TCA theme.
+///
+/// Shows palette ramps, ANSI colors, semantic colors, and UI colors
+/// in a two-column layout. Borrows the theme for the widget lifetime.
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use tca_ratatui::{TcaTheme, ColorPicker};
+/// # use ratatui::Frame;
+/// # fn render(frame: &mut Frame, theme: &TcaTheme) {
+/// let picker = ColorPicker::new(theme)
+///     .title("Theme Preview")
+///     .instructions("Press Q to quit");
+///
+/// frame.render_widget(picker, frame.area());
+/// # }
+/// ```
 pub struct ColorPicker<'a> {
     theme: &'a TcaTheme,
     title: Option<String>,
@@ -14,6 +32,7 @@ pub struct ColorPicker<'a> {
 }
 
 impl<'a> ColorPicker<'a> {
+    /// Create a new color picker for the given theme.
     pub const fn new(theme: &'a TcaTheme) -> Self {
         Self {
             theme,
@@ -22,11 +41,13 @@ impl<'a> ColorPicker<'a> {
         }
     }
 
+    /// Set the title displayed at the top of the widget.
     pub fn title(mut self, title: impl Into<String>) -> Self {
         self.title = Some(title.into());
         self
     }
 
+    /// Set the instructions displayed at the bottom of the widget.
     pub fn instructions(mut self, instructions: impl Into<String>) -> Self {
         self.instructions = Some(instructions.into());
         self

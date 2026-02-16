@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "loader")]
 use anyhow::{Context, Result};
 
+/// Theme metadata.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Meta {
     pub name: String,
@@ -15,7 +16,8 @@ pub struct Meta {
     pub version: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+/// ANSI 16-color definitions mapped to Ratatui colors.
+#[derive(Debug, Clone, PartialEq)]
 pub struct Ansi {
     pub black: Color,
     pub red: Color,
@@ -35,7 +37,10 @@ pub struct Ansi {
     pub bright_white: Color,
 }
 
-#[derive(Debug, Clone)]
+/// Semantic color roles for UI elements.
+///
+/// Provides standard color assignments for common UI states.
+#[derive(Debug, Clone, PartialEq)]
 pub struct Semantic {
     pub error: Color,
     pub warning: Color,
@@ -58,7 +63,10 @@ impl Default for Semantic {
     }
 }
 
-#[derive(Debug, Clone)]
+/// UI color definitions for application chrome.
+///
+/// Covers backgrounds, foregrounds, borders, cursors, and selections.
+#[derive(Debug, Clone, PartialEq)]
 pub struct Ui {
     pub bg_primary: Color,
     pub bg_secondary: Color,
@@ -91,16 +99,22 @@ impl Default for Ui {
     }
 }
 
+/// A color ramp containing shades of a single hue.
+///
+/// Maps tone values (1-5) to RGB colors.
+/// Not all tones need to be present.
 #[derive(Debug, Clone)]
 pub struct ColorRamp {
-    colors: std::collections::HashMap<u8, Color>,
+    pub(crate) colors: std::collections::HashMap<u8, Color>,
 }
 
 impl ColorRamp {
+    /// Get the color at a specific tone level.
     pub fn get(&self, tone: u8) -> Option<Color> {
         self.colors.get(&tone).copied()
     }
 
+    /// Get all tone levels present in this ramp, sorted ascending.
     pub fn tones(&self) -> Vec<u8> {
         let mut tones: Vec<u8> = self.colors.keys().copied().collect();
         tones.sort_unstable();
@@ -108,6 +122,10 @@ impl ColorRamp {
     }
 }
 
+/// Color palette containing neutral and hue-based ramps.
+///
+/// Always includes a neutral (grayscale) ramp.
+/// Hue ramps (red, blue, green, etc.) are optional.
 #[derive(Debug, Clone)]
 pub struct Palette {
     pub neutral: ColorRamp,
@@ -115,10 +133,12 @@ pub struct Palette {
 }
 
 impl Palette {
+    /// Get a named hue ramp.
     pub fn get_ramp(&self, name: &str) -> Option<&ColorRamp> {
         self.ramps.get(name)
     }
 
+    /// Get all hue ramp names, sorted alphabetically.
     pub fn ramp_names(&self) -> Vec<&str> {
         let mut names: Vec<&str> = self.ramps.keys().map(|s| s.as_str()).collect();
         names.sort_unstable();
@@ -126,6 +146,11 @@ impl Palette {
     }
 }
 
+/// A TCA theme with Ratatui-compatible colors.
+///
+/// This is the main type for using TCA themes in Ratatui applications.
+/// All color sections are always present, with defaults applied when
+/// not specified in the theme file.
 #[derive(Debug, Clone)]
 pub struct TcaTheme {
     pub meta: Meta,
@@ -136,39 +161,45 @@ pub struct TcaTheme {
 }
 
 impl TcaTheme {
+    /// Get the theme name.
     pub fn name(&self) -> &str {
         &self.meta.name
     }
 
+    /// Get the theme author, if specified.
     pub fn author(&self) -> Option<&str> {
         self.meta.author.as_deref()
     }
 }
 
 #[cfg(feature = "loader")]
+/// Loads TCA themes from files or YAML strings.
 pub struct ThemeLoader;
 
 #[cfg(feature = "loader")]
 impl ThemeLoader {
+    /// Load a theme from a file path.
     pub fn from_file(path: impl AsRef<std::path::Path>) -> Result<TcaTheme> {
-        let content = std::fs::read_to_string(path.as_ref())
-            .context("Failed to read theme file")?;
+        let content =
+            std::fs::read_to_string(path.as_ref()).context("Failed to read theme file")?;
         Self::from_yaml(&content)
     }
 
+    /// Load a theme from a YAML string.
     pub fn from_yaml(content: &str) -> Result<TcaTheme> {
-        let raw: RawTheme = serde_yaml::from_str(content)
-            .context("Failed to parse theme YAML")?;
+        let raw: RawTheme = serde_yaml::from_str(content).context("Failed to parse theme YAML")?;
         raw.into_theme()
     }
 }
 
 #[cfg(feature = "loader")]
 impl TcaTheme {
+    /// Load a theme from a file path.
     pub fn from_file(path: impl AsRef<std::path::Path>) -> Result<Self> {
         ThemeLoader::from_file(path)
     }
 
+    /// Load a theme from a YAML string.
     pub fn from_yaml(content: &str) -> Result<Self> {
         ThemeLoader::from_yaml(content)
     }
@@ -277,7 +308,9 @@ impl RawTheme {
                 let hex = if ramp_name == "neutral" {
                     self.palette.neutral.get(tone)
                 } else {
-                    self.palette.other.get(ramp_name)
+                    self.palette
+                        .other
+                        .get(ramp_name)
                         .and_then(|ramp| ramp.get(tone))
                 }
                 .context(format!("Color not found: {}", reference))?;
@@ -309,32 +342,40 @@ impl RawTheme {
             bright_white: resolve(&self.ansi.bright_white)?,
         };
 
-        let semantic = self.semantic.map(|s| {
-            Ok::<_, anyhow::Error>(Semantic {
-                error: resolve(&s.error)?,
-                warning: resolve(&s.warning)?,
-                info: resolve(&s.info)?,
-                success: resolve(&s.success)?,
-                highlight: resolve(&s.highlight)?,
-                link: resolve(&s.link)?,
+        let semantic = self
+            .semantic
+            .map(|s| {
+                Ok::<_, anyhow::Error>(Semantic {
+                    error: resolve(&s.error)?,
+                    warning: resolve(&s.warning)?,
+                    info: resolve(&s.info)?,
+                    success: resolve(&s.success)?,
+                    highlight: resolve(&s.highlight)?,
+                    link: resolve(&s.link)?,
+                })
             })
-        }).transpose()?.unwrap_or_default();
+            .transpose()?
+            .unwrap_or_default();
 
-        let ui = self.ui.map(|u| {
-            Ok::<_, anyhow::Error>(Ui {
-                bg_primary: resolve(&u.bg_primary)?,
-                bg_secondary: resolve(&u.bg_secondary)?,
-                fg_primary: resolve(&u.fg_primary)?,
-                fg_secondary: resolve(&u.fg_secondary)?,
-                fg_muted: resolve(&u.fg_muted)?,
-                border_primary: resolve(&u.border_primary)?,
-                border_muted: resolve(&u.border_muted)?,
-                cursor_primary: resolve(&u.cursor_primary)?,
-                cursor_muted: resolve(&u.cursor_muted)?,
-                selection_bg: resolve(&u.selection_bg)?,
-                selection_fg: resolve(&u.selection_fg)?,
+        let ui = self
+            .ui
+            .map(|u| {
+                Ok::<_, anyhow::Error>(Ui {
+                    bg_primary: resolve(&u.bg_primary)?,
+                    bg_secondary: resolve(&u.bg_secondary)?,
+                    fg_primary: resolve(&u.fg_primary)?,
+                    fg_secondary: resolve(&u.fg_secondary)?,
+                    fg_muted: resolve(&u.fg_muted)?,
+                    border_primary: resolve(&u.border_primary)?,
+                    border_muted: resolve(&u.border_muted)?,
+                    cursor_primary: resolve(&u.cursor_primary)?,
+                    cursor_muted: resolve(&u.cursor_muted)?,
+                    selection_bg: resolve(&u.selection_bg)?,
+                    selection_fg: resolve(&u.selection_fg)?,
+                })
             })
-        }).transpose()?.unwrap_or_default();
+            .transpose()?
+            .unwrap_or_default();
 
         let mut palette_neutral_colors = std::collections::HashMap::new();
         for (tone_str, hex) in &self.palette.neutral {
@@ -342,8 +383,9 @@ impl RawTheme {
                 palette_neutral_colors.insert(tone, parse_hex(hex)?);
             }
         }
-        
-        let mut palette_ramps: std::collections::HashMap<String, ColorRamp> = std::collections::HashMap::new();
+
+        let mut palette_ramps: std::collections::HashMap<String, ColorRamp> =
+            std::collections::HashMap::new();
         for (ramp_name, ramp_map) in &self.palette.other {
             let mut colors = std::collections::HashMap::new();
             for (tone_str, hex) in ramp_map {
@@ -355,7 +397,9 @@ impl RawTheme {
         }
 
         let palette = Palette {
-            neutral: ColorRamp { colors: palette_neutral_colors },
+            neutral: ColorRamp {
+                colors: palette_neutral_colors,
+            },
             ramps: palette_ramps,
         };
 

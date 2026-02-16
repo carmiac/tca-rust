@@ -239,12 +239,14 @@ fn export_vim(theme: &Theme) -> Result<String> {
     }
 
     output.push_str("\n\" UI colors\n");
-    if let Some(ui) = &theme.ui
-        && let Some(bg_ref) = ui.get("bg.primary")
-        && let Some(fg_ref) = ui.get("fg.primary") {
-        let bg = resolve_color(bg_ref, theme)?;
-        let fg = resolve_color(fg_ref, theme)?;
-        output.push_str(&format!("hi Normal guifg={} guibg={}\n", fg, bg));
+    if let Some(ui) = &theme.ui {
+        if let Some(bg_ref) = ui.get("bg.primary") {
+            if let Some(fg_ref) = ui.get("fg.primary") {
+                let bg = resolve_color(bg_ref, theme)?;
+                let fg = resolve_color(fg_ref, theme)?;
+                output.push_str(&format!("hi Normal guifg={} guibg={}\n", fg, bg));
+            }
+        }
     }
 
     Ok(output)
@@ -347,7 +349,10 @@ fn export_vscode(theme: &Theme) -> Result<String> {
         "colors": {}
     });
 
-    let colors = theme_json["colors"].as_object_mut().unwrap();
+    let colors = theme_json
+        .get_mut("colors")
+        .and_then(|c| c.as_object_mut())
+        .context("Theme JSON missing 'colors' object")?;
 
     if let Some(ui) = &theme.ui {
         if let Some(bg_ref) = ui.get("bg.primary") {

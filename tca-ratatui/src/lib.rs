@@ -32,6 +32,9 @@ mod theme;
 #[cfg(feature = "widgets")]
 pub mod widgets;
 
+#[cfg(test)]
+mod tests;
+
 pub use theme::{Ansi, ColorRamp, Meta, Palette, Semantic, TcaTheme, Ui};
 
 #[cfg(feature = "loader")]

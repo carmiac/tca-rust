@@ -272,49 +272,53 @@ fn validate_contrast(theme: &Theme) -> Result<ValidationResult> {
     }
 
     // Semantic colors vs ui.bg.primary
-    if let (Some(semantic), Some(ui)) = (&theme.semantic, &theme.ui)
-        && let Some(bg_primary_ref) = ui.get("bg.primary") {
-        let bg_primary = theme.resolve(bg_primary_ref).unwrap_or_default();
-        let bg_lum = relative_luminance(&bg_primary)?;
+    if let (Some(semantic), Some(ui)) = (&theme.semantic, &theme.ui) {
+        if let Some(bg_primary_ref) = ui.get("bg.primary") {
+            let bg_primary = theme.resolve(bg_primary_ref).unwrap_or_default();
+            let bg_lum = relative_luminance(&bg_primary)?;
 
-        for (name, color_ref) in semantic {
-            let color = theme.resolve(color_ref).unwrap_or_default();
-            let color_lum = relative_luminance(&color)?;
-            let contrast = contrast_ratio(bg_lum, color_lum);
+            for (name, color_ref) in semantic {
+                let color = theme.resolve(color_ref).unwrap_or_default();
+                let color_lum = relative_luminance(&color)?;
+                let contrast = contrast_ratio(bg_lum, color_lum);
 
-            if contrast < 2.0 {
-                result.add_error(format!(
-                    "Semantic '{}' vs bg.primary contrast too low: {:.2} (must be >= 2.0)",
-                    name, contrast
-                ));
-            } else if contrast < 2.5 {
-                result.add_warning(format!(
-                    "Semantic '{}' vs bg.primary contrast low: {:.2} (recommended >= 2.5)",
-                    name, contrast
-                ));
+                if contrast < 2.0 {
+                    result.add_error(format!(
+                        "Semantic '{}' vs bg.primary contrast too low: {:.2} (must be >= 2.0)",
+                        name, contrast
+                    ));
+                } else if contrast < 2.5 {
+                    result.add_warning(format!(
+                        "Semantic '{}' vs bg.primary contrast low: {:.2} (recommended >= 2.5)",
+                        name, contrast
+                    ));
+                }
             }
         }
     }
 
     // ui.fg.primary vs ui.bg.primary
-    if let Some(ui) = &theme.ui
-        && let (Some(fg_ref), Some(bg_ref)) = (ui.get("fg.primary"), ui.get("bg.primary")) {
-        let fg = theme.resolve(fg_ref).unwrap_or_default();
-        let bg = theme.resolve(bg_ref).unwrap_or_default();
-        let fg_lum = relative_luminance(&fg)?;
-        let bg_lum = relative_luminance(&bg)?;
-        let contrast = contrast_ratio(fg_lum, bg_lum);
+    if let Some(ui) = &theme.ui {
+        if let Some(fg_ref) = ui.get("fg.primary") {
+            if let Some(bg_ref) = ui.get("bg.primary") {
+                let fg = theme.resolve(fg_ref).unwrap_or_default();
+                let bg = theme.resolve(bg_ref).unwrap_or_default();
+                let fg_lum = relative_luminance(&fg)?;
+                let bg_lum = relative_luminance(&bg)?;
+                let contrast = contrast_ratio(fg_lum, bg_lum);
 
-        if contrast < 3.0 {
-            result.add_error(format!(
-                "UI fg.primary/bg.primary contrast too low: {:.2} (must be >= 3.0)",
-                contrast
-            ));
-        } else if contrast < 3.5 {
-            result.add_warning(format!(
-                "UI fg.primary/bg.primary contrast low: {:.2} (recommended >= 3.5)",
-                contrast
-            ));
+                if contrast < 3.0 {
+                    result.add_error(format!(
+                        "UI fg.primary/bg.primary contrast too low: {:.2} (must be >= 3.0)",
+                        contrast
+                    ));
+                } else if contrast < 3.5 {
+                    result.add_warning(format!(
+                        "UI fg.primary/bg.primary contrast low: {:.2} (recommended >= 3.5)",
+                        contrast
+                    ));
+                }
+            }
         }
     }
 

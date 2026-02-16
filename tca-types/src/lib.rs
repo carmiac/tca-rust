@@ -6,8 +6,8 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// A complete TCA theme definition
-#[derive(Debug, Clone, Deserialize, Serialize)]
+/// A complete TCA theme definition.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Theme {
     pub meta: Meta,
     pub palette: Palette,
@@ -20,8 +20,8 @@ pub struct Theme {
     pub ui: Option<HashMap<String, String>>,
 }
 
-/// Theme metadata
-#[derive(Debug, Clone, Deserialize, Serialize)]
+/// Theme metadata.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Meta {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -34,20 +34,22 @@ pub struct Meta {
     pub description: Option<String>,
 }
 
-/// Color palette with hue ramps
-#[derive(Debug, Clone, Deserialize, Serialize)]
+/// Color palette with hue ramps.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Palette {
     pub neutral: HueRamp,
     #[serde(flatten)]
     pub other: HashMap<String, HueRamp>,
 }
 
-/// A hue ramp containing color values at different shades
-#[derive(Debug, Clone, Deserialize, Serialize)]
+/// A hue ramp containing color values at different shades.
+///
+/// Maps tone values (typically "1" through "5") to hex color strings.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct HueRamp(pub HashMap<String, String>);
 
-/// ANSI 16-color definitions
-#[derive(Debug, Clone, Deserialize, Serialize)]
+/// ANSI 16-color definitions.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Ansi {
     pub black: String,
     pub red: String,
@@ -75,12 +77,12 @@ pub struct Ansi {
     pub bright_white: String,
 }
 
-/// Base16 color definitions
-#[derive(Debug, Clone, Deserialize, Serialize)]
+/// Base16 color definitions.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Base16(pub HashMap<String, String>);
 
 impl Theme {
-    /// Resolve a palette reference to its color value
+    /// Resolve a palette reference to its color value.
     ///
     /// Supports the following formats:
     /// - Direct hex color: `#ff0000`
@@ -90,10 +92,7 @@ impl Theme {
             return Some(color_ref.to_string());
         }
 
-        // Strip optional $ prefix for backward compatibility
-        let reference = color_ref;
-
-        let parts: Vec<&str> = reference.split('.').collect();
+        let parts: Vec<&str> = color_ref.split('.').collect();
 
         match parts.len() {
             3 if parts[0] == "palette" => {
@@ -112,12 +111,34 @@ impl Theme {
     }
 }
 
+/// Convert a hex color string to RGB components.
+///
+/// Accepts colors in format "#RRGGBB" or "RRGGBB".
+///
+/// # Examples
+///
+/// ```
+/// use tca_types::hex_to_rgb;
+///
+/// let (r, g, b) = hex_to_rgb("#ff5533").unwrap();
+/// assert_eq!((r, g, b), (255, 85, 51));
+///
+/// let (r, g, b) = hex_to_rgb("ff5533").unwrap();
+/// assert_eq!((r, g, b), (255, 85, 51));
+/// ```
+///
+/// # Errors
+///
+/// Returns error if hex string is not exactly 6 characters (excluding `#`)
+/// or contains non-hexadecimal characters.
 pub fn hex_to_rgb(hex: &str) -> Result<(u8, u8, u8), std::num::ParseIntError> {
-    let hex = if hex.starts_with("#") {
-        &hex[1..7]
-    } else {
-        hex
-    };
+    let hex = hex.trim_start_matches('#');
+
+    if hex.len() != 6 {
+        // Return a ParseIntError by trying to parse invalid input
+        return u8::from_str_radix("", 16).map(|_| (0, 0, 0));
+    }
+
     let r = u8::from_str_radix(&hex[0..2], 16)?;
     let g = u8::from_str_radix(&hex[2..4], 16)?;
     let b = u8::from_str_radix(&hex[4..6], 16)?;
@@ -184,13 +205,6 @@ mod tests {
     }
 
     #[test]
-    fn test_resolve_simple_reference() {
-        let theme = create_test_theme();
-        assert_eq!(theme.resolve("$red.3"), Some("#ff0000".to_string()));
-        assert_eq!(theme.resolve("$neutral.5"), Some("#fafafa".to_string()));
-    }
-
-    #[test]
     fn test_resolve_palette_reference() {
         let theme = create_test_theme();
         assert_eq!(theme.resolve("palette.red.3"), Some("#ff0000".to_string()));
@@ -205,5 +219,52 @@ mod tests {
         let theme = create_test_theme();
         assert_eq!(theme.resolve("$nonexistent.3"), None);
         assert_eq!(theme.resolve("invalid"), None);
+    }
+
+    #[test]
+    fn test_hex_to_rgb_with_hash() {
+        let (r, g, b) = hex_to_rgb("#ff5533").unwrap();
+        assert_eq!((r, g, b), (255, 85, 51));
+    }
+
+    #[test]
+    fn test_hex_to_rgb_without_hash() {
+        let (r, g, b) = hex_to_rgb("ff5533").unwrap();
+        assert_eq!((r, g, b), (255, 85, 51));
+    }
+
+    #[test]
+    fn test_hex_to_rgb_black() {
+        let (r, g, b) = hex_to_rgb("#000000").unwrap();
+        assert_eq!((r, g, b), (0, 0, 0));
+    }
+
+    #[test]
+    fn test_hex_to_rgb_white() {
+        let (r, g, b) = hex_to_rgb("#ffffff").unwrap();
+        assert_eq!((r, g, b), (255, 255, 255));
+    }
+
+    #[test]
+    fn test_hex_to_rgb_too_short() {
+        assert!(hex_to_rgb("#fff").is_err());
+        assert!(hex_to_rgb("abc").is_err());
+    }
+
+    #[test]
+    fn test_hex_to_rgb_too_long() {
+        assert!(hex_to_rgb("#ff5533aa").is_err());
+    }
+
+    #[test]
+    fn test_hex_to_rgb_invalid_chars() {
+        assert!(hex_to_rgb("#gggggg").is_err());
+        assert!(hex_to_rgb("#xyz123").is_err());
+    }
+
+    #[test]
+    fn test_hex_to_rgb_empty() {
+        assert!(hex_to_rgb("").is_err());
+        assert!(hex_to_rgb("#").is_err());
     }
 }

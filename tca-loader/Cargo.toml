@@ -3,7 +3,11 @@ name = "tca-loader"
 version = "0.1.0"
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
 description = "XDG-compliant theme loader for TCA"
+keywords = ["theme", "loader", "xdg", "filesystem", "tca"]
+categories = ["filesystem", "config"]
+readme = "README.md"
 
 [dependencies]
 tca-types = { workspace = true }

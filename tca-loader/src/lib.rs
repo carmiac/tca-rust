@@ -48,11 +48,12 @@ pub fn list_themes() -> Result<Vec<PathBuf>> {
     if let Ok(entries) = fs::read_dir(&themes_dir) {
         for entry in entries.flatten() {
             let path = entry.path();
-            if path.is_file() {
-                if let Some(ext) = path.extension() {
-                    if ext == "yaml" || ext == "yml" {
-                        themes.push(path);
-                    }
+            if !path.is_file() {
+                continue;
+            }
+            if let Some(ext) = path.extension() {
+                if ext == "yaml" || ext == "yml" {
+                    themes.push(path);
                 }
             }
         }
@@ -176,8 +177,20 @@ mod tests {
 
     #[test]
     fn test_list_themes() {
-        // Should not error even if empty
         let themes = list_themes().unwrap();
-        assert!(themes.is_empty() || !themes.is_empty());
+        // Verify that all returned paths have yaml/yml extension
+        for theme_path in themes {
+            let ext = theme_path.extension().and_then(|s| s.to_str());
+            assert!(matches!(ext, Some("yaml") | Some("yml")));
+        }
+    }
+
+    #[test]
+    fn test_list_theme_names() {
+        let names = list_theme_names().unwrap();
+        // Theme names should not have file extensions
+        for name in names {
+            assert!(!name.contains('.'));
+        }
     }
 }
