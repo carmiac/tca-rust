@@ -45,6 +45,19 @@ pub struct Semantic {
     pub link: Color,
 }
 
+impl Default for Semantic {
+    fn default() -> Self {
+        Self {
+            error: Color::Red,
+            warning: Color::Yellow,
+            info: Color::Blue,
+            success: Color::Green,
+            highlight: Color::Cyan,
+            link: Color::Blue,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Ui {
     pub bg_primary: Color,
@@ -58,6 +71,24 @@ pub struct Ui {
     pub cursor_muted: Color,
     pub selection_bg: Color,
     pub selection_fg: Color,
+}
+
+impl Default for Ui {
+    fn default() -> Self {
+        Self {
+            bg_primary: Color::Black,
+            bg_secondary: Color::Black,
+            fg_primary: Color::White,
+            fg_secondary: Color::Gray,
+            fg_muted: Color::DarkGray,
+            border_primary: Color::White,
+            border_muted: Color::DarkGray,
+            cursor_primary: Color::White,
+            cursor_muted: Color::Gray,
+            selection_bg: Color::DarkGray,
+            selection_fg: Color::White,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -100,8 +131,8 @@ pub struct TcaTheme {
     pub meta: Meta,
     pub palette: Palette,
     pub ansi: Ansi,
-    pub semantic: Option<Semantic>,
-    pub ui: Option<Ui>,
+    pub semantic: Semantic,
+    pub ui: Ui,
 }
 
 impl TcaTheme {
@@ -287,7 +318,7 @@ impl RawTheme {
                 highlight: resolve(&s.highlight)?,
                 link: resolve(&s.link)?,
             })
-        }).transpose()?;
+        }).transpose()?.unwrap_or_default();
 
         let ui = self.ui.map(|u| {
             Ok::<_, anyhow::Error>(Ui {
@@ -303,7 +334,7 @@ impl RawTheme {
                 selection_bg: resolve(&u.selection_bg)?,
                 selection_fg: resolve(&u.selection_fg)?,
             })
-        }).transpose()?;
+        }).transpose()?.unwrap_or_default();
 
         let mut palette_neutral_colors = std::collections::HashMap::new();
         for (tone_str, hex) in &self.palette.neutral {

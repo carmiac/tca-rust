@@ -57,7 +57,7 @@ impl App {
 
     fn render(&self, frame: &mut Frame) {
         let theme = &self.themes[self.current_index];
-        
+
         let picker = ColorPicker::new(theme)
             .title("TCA Theme Picker")
             .instructions("◀ Previous | Next ▶ | Quit Q");
@@ -68,19 +68,24 @@ impl App {
 
 fn load_themes_from_directory(dir: &Path) -> io::Result<Vec<TcaTheme>> {
     let mut themes = Vec::new();
-    
+
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
         let path = entry.path();
-        
-        if path.extension().and_then(|s| s.to_str()) == Some("yaml") {
+
+        if matches!(
+            path.extension()
+                .and_then(|s| s.to_str())
+                .unwrap_or_default(),
+            "yaml" | "yml"
+        ) {
             match TcaTheme::from_file(&path) {
                 Ok(theme) => themes.push(theme),
                 Err(e) => eprintln!("Failed to load {:?}: {}", path, e),
             }
         }
     }
-    
+
     themes.sort_by(|a, b| a.meta.name.cmp(&b.meta.name));
     Ok(themes)
 }
@@ -95,23 +100,13 @@ fn main() -> io::Result<()> {
         }
         load_themes_from_directory(path)?
     } else {
-        let default_paths = [
-            "../tca-validator/test/example-minimal.yaml",
-            "../tca-validator/test/example-complete.yaml",
-        ];
-        
-        let mut themes = Vec::new();
-        for path in &default_paths {
-            match TcaTheme::from_file(path) {
-                Ok(theme) => themes.push(theme),
-                Err(e) => eprintln!("Failed to load {}: {}", path, e),
-            }
-        }
-        themes
+        eprintln!("No themes loaded!");
+        eprintln!("Usage: {} <theme-directory>", env::args().next().unwrap());
+        return Ok(());
     };
 
     if themes.is_empty() {
-        eprintln!("No themes loaded!");
+        eprintln!("No themes found in {:?}", env::args().nth(1).unwrap());
         eprintln!("Usage: {} <theme-directory>", env::args().next().unwrap());
         return Ok(());
     }

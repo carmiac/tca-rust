@@ -55,9 +55,9 @@ cargo build --release -p tca
 
 ## Related Projects
 
-- [tca-themes](https://github.com/yourusername/tca-themes) - Theme collection
-- [tca-go](https://github.com/yourusername/tca-go) - Go implementation
-- [tca-python](https://github.com/yourusername/tca-python) - Python implementation
+- [tca-themes](https://github.com/carmiac/tca-themes) - Theme collection
+- [tca-go](https://github.com/carmiac/tca-go) - Go implementation
+- [tca-python](https://github.com/carmiac/tca-python) - Python implementation
 
 ## License
 

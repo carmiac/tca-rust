@@ -1,9 +1,9 @@
-use tca_ratatui::TcaTheme;
 use ratatui::style::Style;
+use tca_ratatui::TcaTheme;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let theme_path = "../tca-validator/test/example-complete.yaml";
-    
+
     println!("Loading TCA theme from: {}", theme_path);
     let theme = TcaTheme::from_file(theme_path)?;
 
@@ -25,26 +25,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  Green: {:?}", theme.ansi.green);
     println!("  Blue: {:?}", theme.ansi.blue);
 
-    if let Some(semantic) = &theme.semantic {
-        println!("\nSemantic Colors:");
-        println!("  Error: {:?}", semantic.error);
-        println!("  Warning: {:?}", semantic.warning);
-        println!("  Success: {:?}", semantic.success);
-        println!("  Info: {:?}", semantic.info);
-    }
+    println!("\nSemantic Colors:");
+    println!("  Error: {:?}", theme.semantic.error);
+    println!("  Warning: {:?}", theme.semantic.warning);
+    println!("  Success: {:?}", theme.semantic.success);
+    println!("  Info: {:?}", theme.semantic.info);
 
-    if let Some(ui) = &theme.ui {
-        println!("\nUI Colors:");
-        println!("  Background: {:?}", ui.bg_primary);
-        println!("  Foreground: {:?}", ui.fg_primary);
-        println!("  Selection: {:?}", ui.selection_bg);
-    }
+    println!("\nUI Colors:");
+    println!("  Background: {:?}", theme.ui.bg_primary);
+    println!("  Foreground: {:?}", theme.ui.fg_primary);
+    println!("  Selection: {:?}", theme.ui.selection_bg);
 
     println!("\nExample Styles:");
-    let error_style = theme.semantic
-        .as_ref()
-        .map(|s| Style::default().fg(s.error))
-        .unwrap_or_default();
+    let error_style = Style::default().fg(theme.semantic.error);
     println!("  Error style: {:?}", error_style);
 
     Ok(())

@@ -1,67 +1,7 @@
+use tca_types::*;
 use anyhow::{Context, Result};
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::fs;
 use std::io::{self, Write};
-
-#[derive(Debug, Deserialize, Serialize)]
-struct Theme {
-    meta: Meta,
-    palette: Palette,
-    ansi: Ansi,
-    base16: Option<Base16>,
-    semantic: Option<HashMap<String, String>>,
-    ui: Option<HashMap<String, String>>,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-struct Meta {
-    name: String,
-    slug: Option<String>,
-    author: Option<String>,
-    version: Option<String>,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-struct Palette {
-    neutral: HueRamp,
-    #[serde(flatten)]
-    other: HashMap<String, HueRamp>,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-struct HueRamp(HashMap<String, String>);
-
-#[derive(Debug, Deserialize, Serialize)]
-struct Ansi {
-    black: String,
-    red: String,
-    green: String,
-    yellow: String,
-    blue: String,
-    magenta: String,
-    cyan: String,
-    white: String,
-    #[serde(rename = "brightBlack")]
-    bright_black: String,
-    #[serde(rename = "brightRed")]
-    bright_red: String,
-    #[serde(rename = "brightGreen")]
-    bright_green: String,
-    #[serde(rename = "brightYellow")]
-    bright_yellow: String,
-    #[serde(rename = "brightBlue")]
-    bright_blue: String,
-    #[serde(rename = "brightMagenta")]
-    bright_magenta: String,
-    #[serde(rename = "brightCyan")]
-    bright_cyan: String,
-    #[serde(rename = "brightWhite")]
-    bright_white: String,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-struct Base16(HashMap<String, String>);
 
 fn resolve_color(reference: &str, theme: &Theme) -> Result<String> {
     if reference.starts_with("palette.") {

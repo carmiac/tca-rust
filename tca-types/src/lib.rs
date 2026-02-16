@@ -30,6 +30,8 @@ pub struct Meta {
     pub author: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
 }
 
 /// Color palette with hue ramps
@@ -82,37 +84,26 @@ impl Theme {
     ///
     /// Supports the following formats:
     /// - Direct hex color: `#ff0000`
-    /// - Palette reference: `$palette.red.500`
-    /// - Simple reference: `$red.500` (assumes palette)
+    /// - Palette reference: `palette.red.5`
     pub fn resolve(&self, color_ref: &str) -> Option<String> {
         if color_ref.starts_with('#') {
             return Some(color_ref.to_string());
         }
 
-        if !color_ref.starts_with('$') {
-            return None;
-        }
+        // Strip optional $ prefix for backward compatibility
+        let reference = color_ref;
 
-        let parts: Vec<&str> = color_ref[1..].split('.').collect();
-        
+        let parts: Vec<&str> = reference.split('.').collect();
+
         match parts.len() {
-            2 => {
-                // $hue.shade format
-                let (hue, shade) = (parts[0], parts[1]);
-                if hue == "neutral" {
-                    self.palette.neutral.0.get(shade).cloned()
-                } else {
-                    self.palette.other.get(hue)
-                        .and_then(|ramp| ramp.0.get(shade).cloned())
-                }
-            }
             3 if parts[0] == "palette" => {
-                // $palette.hue.shade format
                 let (hue, shade) = (parts[1], parts[2]);
                 if hue == "neutral" {
                     self.palette.neutral.0.get(shade).cloned()
                 } else {
-                    self.palette.other.get(hue)
+                    self.palette
+                        .other
+                        .get(hue)
                         .and_then(|ramp| ramp.0.get(shade).cloned())
                 }
             }
@@ -121,17 +112,31 @@ impl Theme {
     }
 }
 
+pub fn hex_to_rgb(hex: &str) -> Result<(u8, u8, u8), std::num::ParseIntError> {
+    let hex = if hex.starts_with("#") {
+        &hex[1..7]
+    } else {
+        hex
+    };
+    let r = u8::from_str_radix(&hex[0..2], 16)?;
+    let g = u8::from_str_radix(&hex[2..4], 16)?;
+    let b = u8::from_str_radix(&hex[4..6], 16)?;
+    Ok((r, g, b))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     fn create_test_theme() -> Theme {
         let mut neutral = HashMap::new();
-        neutral.insert("50".to_string(), "#fafafa".to_string());
-        neutral.insert("900".to_string(), "#1a1a1a".to_string());
+        neutral.insert("1".to_string(), "#1a1a1a".to_string());
+        neutral.insert("2".to_string(), "#666666".to_string());
+        neutral.insert("5".to_string(), "#fafafa".to_string());
 
         let mut red = HashMap::new();
-        red.insert("500".to_string(), "#ff0000".to_string());
+        red.insert("3".to_string(), "#ff0000".to_string());
+        red.insert("5".to_string(), "#ff5555".to_string());
 
         let mut other_hues = HashMap::new();
         other_hues.insert("red".to_string(), HueRamp(red));
@@ -142,28 +147,29 @@ mod tests {
                 slug: Some("test".to_string()),
                 author: None,
                 version: None,
+                description: None,
             },
             palette: Palette {
                 neutral: HueRamp(neutral),
                 other: other_hues,
             },
             ansi: Ansi {
-                black: "$neutral.900".to_string(),
-                red: "$red.500".to_string(),
+                black: "neutral.1".to_string(),
+                red: "red.4".to_string(),
                 green: "#00ff00".to_string(),
                 yellow: "#ffff00".to_string(),
                 blue: "#0000ff".to_string(),
                 magenta: "#ff00ff".to_string(),
                 cyan: "#00ffff".to_string(),
-                white: "$neutral.50".to_string(),
-                bright_black: "$neutral.900".to_string(),
-                bright_red: "$red.500".to_string(),
+                white: "neutral.5".to_string(),
+                bright_black: "neutral.2".to_string(),
+                bright_red: "red.5".to_string(),
                 bright_green: "#00ff00".to_string(),
                 bright_yellow: "#ffff00".to_string(),
                 bright_blue: "#0000ff".to_string(),
                 bright_magenta: "#ff00ff".to_string(),
                 bright_cyan: "#00ffff".to_string(),
-                bright_white: "$neutral.50".to_string(),
+                bright_white: "$neutral.5".to_string(),
             },
             base16: None,
             semantic: None,
@@ -180,21 +186,24 @@ mod tests {
     #[test]
     fn test_resolve_simple_reference() {
         let theme = create_test_theme();
-        assert_eq!(theme.resolve("$red.500"), Some("#ff0000".to_string()));
-        assert_eq!(theme.resolve("$neutral.50"), Some("#fafafa".to_string()));
+        assert_eq!(theme.resolve("$red.3"), Some("#ff0000".to_string()));
+        assert_eq!(theme.resolve("$neutral.5"), Some("#fafafa".to_string()));
     }
 
     #[test]
     fn test_resolve_palette_reference() {
         let theme = create_test_theme();
-        assert_eq!(theme.resolve("$palette.red.500"), Some("#ff0000".to_string()));
-        assert_eq!(theme.resolve("$palette.neutral.900"), Some("#1a1a1a".to_string()));
+        assert_eq!(theme.resolve("palette.red.3"), Some("#ff0000".to_string()));
+        assert_eq!(
+            theme.resolve("palette.neutral.1"),
+            Some("#1a1a1a".to_string())
+        );
     }
 
     #[test]
     fn test_resolve_invalid() {
         let theme = create_test_theme();
-        assert_eq!(theme.resolve("$nonexistent.500"), None);
+        assert_eq!(theme.resolve("$nonexistent.3"), None);
         assert_eq!(theme.resolve("invalid"), None);
     }
 }

@@ -17,16 +17,12 @@
 //! let success_style = Style::default().fg(theme.ansi.green);
 //!
 //! // Use semantic colors
-//! if let Some(semantic) = &theme.semantic {
-//!     let error_style = Style::default().fg(semantic.error);
-//!     let warning_style = Style::default().fg(semantic.warning);
-//! }
+//! let error_style = Style::default().fg(theme.semantic.error);
+//! let warning_style = Style::default().fg(theme.semantic.warning);
 //!
 //! // Use UI colors
-//! if let Some(ui) = &theme.ui {
-//!     let bg_style = Style::default().bg(ui.bg_primary);
-//!     let fg_style = Style::default().fg(ui.fg_primary);
-//! }
+//! let bg_style = Style::default().bg(theme.ui.bg_primary);
+//! let fg_style = Style::default().fg(theme.ui.fg_primary);
 //! # Ok(())
 //! # }
 //! ```
