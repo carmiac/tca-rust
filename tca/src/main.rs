@@ -20,6 +20,8 @@ enum Commands {
     Validate {
         /// Path to the theme YAML file or theme name from shared directory
         theme: String,
+        /// Path to the schema file
+        schema_path: String,
     },
     /// Export a theme to various formats
     Export {
@@ -40,8 +42,8 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Validate { theme } => {
-            validate::run(&theme)?;
+        Commands::Validate { theme, schema_path } => {
+            validate::run(&theme, &schema_path)?;
         }
         Commands::Export {
             theme,

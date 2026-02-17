@@ -1,8 +1,8 @@
-use tca_types::*;
 use anyhow::{Context, Result};
 use colored::Colorize;
 use std::fs;
 use std::path::PathBuf;
+use tca_types::*;
 
 #[derive(Debug)]
 enum ValidationIssue {
@@ -72,7 +72,6 @@ fn contrast_ratio(l1: f64, l2: f64) -> f64 {
     (lighter + 0.05) / (darker + 0.05)
 }
 
-
 fn validate_schema(theme_content: &str, schema_path: &PathBuf) -> Result<ValidationResult> {
     let mut result = ValidationResult::new();
 
@@ -101,9 +100,12 @@ fn validate_palette_structure(theme: &Theme) -> Result<ValidationResult> {
     // Check neutral ramp
     let len = theme.palette.neutral.0.len();
     if len != 5 {
-        result.add_error(format!("Neutral ramp missing entries. Must be 5 long, only found {}",len));
+        result.add_error(format!(
+            "Neutral ramp missing entries. Must be 5 long, only found {}",
+            len
+        ));
     }
-    for (key,_) in theme.palette.neutral.0.iter() {
+    for (key, _) in theme.palette.neutral.0.iter() {
         if !matches!(key.as_str(), "1" | "2" | "3" | "4" | "5") {
             result.add_error(format!(
                 "Invalid ramp key in neutral: '{}' (must be 1-5)",
@@ -154,22 +156,63 @@ fn validate_no_direct_hex(theme: &Theme) -> Result<ValidationResult> {
     let is_hex = |s: &str| s.starts_with('#');
 
     // Check ANSI colors
-    if is_hex(&theme.ansi.black) { result.add_error("ANSI black uses direct hex (must use palette reference)".to_string()); }
-    if is_hex(&theme.ansi.red) { result.add_error("ANSI red uses direct hex (must use palette reference)".to_string()); }
-    if is_hex(&theme.ansi.green) { result.add_error("ANSI green uses direct hex (must use palette reference)".to_string()); }
-    if is_hex(&theme.ansi.yellow) { result.add_error("ANSI yellow uses direct hex (must use palette reference)".to_string()); }
-    if is_hex(&theme.ansi.blue) { result.add_error("ANSI blue uses direct hex (must use palette reference)".to_string()); }
-    if is_hex(&theme.ansi.magenta) { result.add_error("ANSI magenta uses direct hex (must use palette reference)".to_string()); }
-    if is_hex(&theme.ansi.cyan) { result.add_error("ANSI cyan uses direct hex (must use palette reference)".to_string()); }
-    if is_hex(&theme.ansi.white) { result.add_error("ANSI white uses direct hex (must use palette reference)".to_string()); }
-    if is_hex(&theme.ansi.bright_black) { result.add_error("ANSI brightBlack uses direct hex (must use palette reference)".to_string()); }
-    if is_hex(&theme.ansi.bright_red) { result.add_error("ANSI brightRed uses direct hex (must use palette reference)".to_string()); }
-    if is_hex(&theme.ansi.bright_green) { result.add_error("ANSI brightGreen uses direct hex (must use palette reference)".to_string()); }
-    if is_hex(&theme.ansi.bright_yellow) { result.add_error("ANSI brightYellow uses direct hex (must use palette reference)".to_string()); }
-    if is_hex(&theme.ansi.bright_blue) { result.add_error("ANSI brightBlue uses direct hex (must use palette reference)".to_string()); }
-    if is_hex(&theme.ansi.bright_magenta) { result.add_error("ANSI brightMagenta uses direct hex (must use palette reference)".to_string()); }
-    if is_hex(&theme.ansi.bright_cyan) { result.add_error("ANSI brightCyan uses direct hex (must use palette reference)".to_string()); }
-    if is_hex(&theme.ansi.bright_white) { result.add_error("ANSI brightWhite uses direct hex (must use palette reference)".to_string()); }
+    if is_hex(&theme.ansi.black) {
+        result.add_error("ANSI black uses direct hex (must use palette reference)".to_string());
+    }
+    if is_hex(&theme.ansi.red) {
+        result.add_error("ANSI red uses direct hex (must use palette reference)".to_string());
+    }
+    if is_hex(&theme.ansi.green) {
+        result.add_error("ANSI green uses direct hex (must use palette reference)".to_string());
+    }
+    if is_hex(&theme.ansi.yellow) {
+        result.add_error("ANSI yellow uses direct hex (must use palette reference)".to_string());
+    }
+    if is_hex(&theme.ansi.blue) {
+        result.add_error("ANSI blue uses direct hex (must use palette reference)".to_string());
+    }
+    if is_hex(&theme.ansi.magenta) {
+        result.add_error("ANSI magenta uses direct hex (must use palette reference)".to_string());
+    }
+    if is_hex(&theme.ansi.cyan) {
+        result.add_error("ANSI cyan uses direct hex (must use palette reference)".to_string());
+    }
+    if is_hex(&theme.ansi.white) {
+        result.add_error("ANSI white uses direct hex (must use palette reference)".to_string());
+    }
+    if is_hex(&theme.ansi.bright_black) {
+        result
+            .add_error("ANSI brightBlack uses direct hex (must use palette reference)".to_string());
+    }
+    if is_hex(&theme.ansi.bright_red) {
+        result.add_error("ANSI brightRed uses direct hex (must use palette reference)".to_string());
+    }
+    if is_hex(&theme.ansi.bright_green) {
+        result
+            .add_error("ANSI brightGreen uses direct hex (must use palette reference)".to_string());
+    }
+    if is_hex(&theme.ansi.bright_yellow) {
+        result.add_error(
+            "ANSI brightYellow uses direct hex (must use palette reference)".to_string(),
+        );
+    }
+    if is_hex(&theme.ansi.bright_blue) {
+        result
+            .add_error("ANSI brightBlue uses direct hex (must use palette reference)".to_string());
+    }
+    if is_hex(&theme.ansi.bright_magenta) {
+        result.add_error(
+            "ANSI brightMagenta uses direct hex (must use palette reference)".to_string(),
+        );
+    }
+    if is_hex(&theme.ansi.bright_cyan) {
+        result
+            .add_error("ANSI brightCyan uses direct hex (must use palette reference)".to_string());
+    }
+    if is_hex(&theme.ansi.bright_white) {
+        result
+            .add_error("ANSI brightWhite uses direct hex (must use palette reference)".to_string());
+    }
 
     // Check semantic colors
     if let Some(semantic) = &theme.semantic {
@@ -325,7 +368,7 @@ fn validate_contrast(theme: &Theme) -> Result<ValidationResult> {
     Ok(result)
 }
 
-pub fn run(file_path: &str) -> Result<()> {
+pub fn run(file_path: &str, schema_path: &str) -> Result<()> {
     let content = tca_loader::load_theme_file(file_path)?;
 
     let theme: Theme = serde_yaml::from_str(&content).context("Failed to parse theme file")?;
@@ -333,7 +376,7 @@ pub fn run(file_path: &str) -> Result<()> {
     let mut all_issues = ValidationResult::new();
 
     // Schema validation
-    let schema_path = PathBuf::from("tca.schema.pragmatic.json");
+    let schema_path = PathBuf::from(schema_path);
     match validate_schema(&content, &schema_path) {
         Ok(result) => {
             all_issues.issues.extend(result.issues);

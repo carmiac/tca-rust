@@ -1,11 +1,21 @@
+use std::env;
+use std::path::PathBuf;
+
 use ratatui::style::Style;
 use tca_ratatui::TcaTheme;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let theme_path = "../tca-validator/test/example-complete.yaml";
+    let theme_path: Option<PathBuf> = env::args_os().nth(1).map(PathBuf::from);
 
-    println!("Loading TCA theme from: {}", theme_path);
-    let theme = TcaTheme::from_file(theme_path)?;
+    let theme = match theme_path {
+        Some(theme_path) => {
+            println!("Loading TCA theme from: {:?}", theme_path);
+            TcaTheme::from_file(theme_path)?
+        }
+        None => {
+            return Err("Usage: basic path/to/theme.yaml".into());
+        }
+    };
 
     println!("\nTheme: {}", theme.name());
     if let Some(author) = theme.author() {

@@ -90,7 +90,7 @@ fn load_themes_from_directory(dir: &Path) -> io::Result<Vec<TcaTheme>> {
     Ok(themes)
 }
 
-fn main() -> io::Result<()> {
+fn main() -> anyhow::Result<()> {
     let themes = if let Some(dir) = env::args().nth(1) {
         let path = Path::new(&dir);
         if !path.is_dir() {
@@ -100,9 +100,7 @@ fn main() -> io::Result<()> {
         }
         load_themes_from_directory(path)?
     } else {
-        eprintln!("No themes loaded!");
-        eprintln!("Usage: {} <theme-directory>", env::args().next().unwrap());
-        return Ok(());
+        load_themes_from_directory(&tca_loader::get_themes_dir()?)?
     };
 
     if themes.is_empty() {
@@ -111,5 +109,5 @@ fn main() -> io::Result<()> {
         return Ok(());
     }
 
-    ratatui::run(|terminal| App::new(themes).run(terminal))
+    Ok(ratatui::run(|terminal| App::new(themes).run(terminal))?)
 }
