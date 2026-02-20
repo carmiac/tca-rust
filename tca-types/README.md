@@ -34,9 +34,9 @@ let (r, g, b) = hex_to_rgb("#ff5555")?;
 
 ```
 Theme
- - Meta       - Name, author, version, description
- - Palette    - Neutral and hue ramps (red, blue, green, etc.)
+ - Theme      - Name, author, version, description
  - Ansi       - 16 ANSI color definitions
+ - Palette    - Neutral and hue ramps (red, blue, green, etc.)
  - Base16     - Optional Base16 scheme
  - Semantic   - Optional semantic colors (error, warning, etc.)
  - Ui         - Optional UI colors (background, foreground, etc.)
