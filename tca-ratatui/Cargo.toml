@@ -10,10 +10,10 @@ categories = ["command-line-interface", "config"]
 readme = "README.md"
 
 [dependencies]
-tca-types = { workspace = true }
+tca-types = { workspace = true, optional = true }
 tca-loader = { workspace = true, optional = true }
 serde = { workspace = true }
-serde_yaml = { workspace = true }
+toml = { workspace = true }
 ratatui = { workspace = true }
 anyhow = { workspace = true }
 
@@ -22,7 +22,7 @@ crossterm = { workspace = true }
 
 [features]
 default = ["loader"]
-loader = ["dep:tca-loader"]
+loader = ["dep:tca-loader", "dep:tca-types"]
 widgets = []
 
 [[example]]

@@ -90,12 +90,9 @@ impl Widget for ColorPicker<'_> {
             Line::from("Palette:"),
         ];
 
-        let neutral_line = render_colored_ramp("neutral", &theme.palette.neutral);
-        left_lines.push(neutral_line);
-
         for name in theme.palette.ramp_names() {
             if let Some(ramp) = theme.palette.get_ramp(name) {
-                left_lines.push(render_colored_ramp(name, ramp));
+                left_lines.push(render_color_ramp(name, ramp));
             }
         }
 
@@ -163,10 +160,10 @@ impl Widget for ColorPicker<'_> {
     }
 }
 
-fn render_colored_ramp(name: &str, ramp: &ColorRamp) -> Line<'static> {
+fn render_color_ramp(name: &str, ramp: &ColorRamp) -> Line<'static> {
     let mut spans = vec![ratatui::text::Span::raw(format!("  {}: ", name))];
-    for tone in ramp.tones() {
-        if let Some(color) = ramp.get(tone) {
+    for idx in ramp.indices() {
+        if let Some(color) = ramp.get(idx) {
             spans.push(ratatui::text::Span::styled("█", Style::default().fg(color)));
         }
     }

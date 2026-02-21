@@ -59,17 +59,40 @@ fn relative_luminance(hex: &str) -> Result<f64> {
         }
     };
 
-    let r_linear = to_linear(r);
-    let g_linear = to_linear(g);
-    let b_linear = to_linear(b);
-
-    Ok(0.2126 * r_linear + 0.7152 * g_linear + 0.0722 * b_linear)
+    Ok(0.2126 * to_linear(r) + 0.7152 * to_linear(g) + 0.0722 * to_linear(b))
 }
 
 fn contrast_ratio(l1: f64, l2: f64) -> f64 {
     let lighter = l1.max(l2);
     let darker = l1.min(l2);
     (lighter + 0.05) / (darker + 0.05)
+}
+
+/// Check a single contrast pair and emit warning/error based on the spec thresholds.
+fn check_contrast(
+    result: &mut ValidationResult,
+    label: &str,
+    fg_hex: &str,
+    bg_hex: &str,
+    warn_below: f64,
+    error_below: f64,
+) -> Result<()> {
+    let fg_lum = relative_luminance(fg_hex)?;
+    let bg_lum = relative_luminance(bg_hex)?;
+    let ratio = contrast_ratio(fg_lum, bg_lum);
+
+    if ratio < error_below {
+        result.add_error(format!(
+            "{} contrast too low: {:.2} (error threshold < {:.1})",
+            label, ratio, error_below
+        ));
+    } else if ratio < warn_below {
+        result.add_warning(format!(
+            "{} contrast low: {:.2} (recommended >= {:.1})",
+            label, ratio, warn_below
+        ));
+    }
+    Ok(())
 }
 
 fn validate_schema(theme_content: &str, schema_path: &PathBuf) -> Result<ValidationResult> {
@@ -79,8 +102,11 @@ fn validate_schema(theme_content: &str, schema_path: &PathBuf) -> Result<Validat
     let schema: serde_json::Value =
         serde_json::from_str(&schema_content).context("Failed to parse schema JSON")?;
 
+    // Convert TOML → JSON for schema validation
+    let toml_value: toml::Value =
+        toml::from_str(theme_content).context("Failed to parse theme as TOML")?;
     let theme_value: serde_json::Value =
-        serde_yaml::from_str(theme_content).context("Failed to parse theme as JSON value")?;
+        serde_json::to_value(&toml_value).context("Failed to convert TOML to JSON value")?;
 
     let compiled = jsonschema::JSONSchema::compile(&schema)
         .map_err(|e| anyhow::anyhow!("Failed to compile schema: {}", e))?;
@@ -94,309 +120,270 @@ fn validate_schema(theme_content: &str, schema_path: &PathBuf) -> Result<Validat
     Ok(result)
 }
 
-fn validate_palette_structure(theme: &Theme) -> Result<ValidationResult> {
+fn validate_ansi_hex(theme: &Theme) -> ValidationResult {
     let mut result = ValidationResult::new();
 
-    // Check neutral ramp
-    let len = theme.palette.neutral.0.len();
-    if len != 5 {
-        result.add_error(format!(
-            "Neutral ramp missing entries. Must be 5 long, only found {}",
-            len
-        ));
-    }
-    for (key, _) in theme.palette.neutral.0.iter() {
-        if !matches!(key.as_str(), "1" | "2" | "3" | "4" | "5") {
-            result.add_error(format!(
-                "Invalid ramp key in neutral: '{}' (must be 1-5)",
-                key
-            ));
+    // Per spec: ANSI values must be direct hex — no references allowed.
+    let check = |name: &str, value: &str| -> Option<ValidationIssue> {
+        if !value.starts_with('#') {
+            Some(ValidationIssue::Error(format!(
+                "ANSI {} must be a direct hex color, got '{}'",
+                name, value
+            )))
+        } else if value.len() != 7 {
+            Some(ValidationIssue::Error(format!(
+                "ANSI {} invalid hex '{}' (must be #RRGGBB)",
+                name, value
+            )))
+        } else {
+            None
+        }
+    };
+
+    let ansi_fields = [
+        ("black", &theme.ansi.black),
+        ("red", &theme.ansi.red),
+        ("green", &theme.ansi.green),
+        ("yellow", &theme.ansi.yellow),
+        ("blue", &theme.ansi.blue),
+        ("magenta", &theme.ansi.magenta),
+        ("cyan", &theme.ansi.cyan),
+        ("white", &theme.ansi.white),
+        ("bright_black", &theme.ansi.bright_black),
+        ("bright_red", &theme.ansi.bright_red),
+        ("bright_green", &theme.ansi.bright_green),
+        ("bright_yellow", &theme.ansi.bright_yellow),
+        ("bright_blue", &theme.ansi.bright_blue),
+        ("bright_magenta", &theme.ansi.bright_magenta),
+        ("bright_cyan", &theme.ansi.bright_cyan),
+        ("bright_white", &theme.ansi.bright_white),
+    ];
+
+    for (name, value) in ansi_fields {
+        if let Some(issue) = check(name, value) {
+            result.issues.push(issue);
         }
     }
 
-    // Check other ramps
-    for (ramp_name, ramp) in &theme.palette.other {
-        for key in ramp.0.keys() {
-            if !matches!(key.as_str(), "1" | "2" | "3" | "4" | "5") {
-                result.add_error(format!(
-                    "Invalid ramp key in {}: '{}' (must be 1-5)",
-                    ramp_name, key
-                ));
-            }
-        }
-    }
-
-    // Validate all palette values are hex colors
-    for (key, value) in &theme.palette.neutral.0 {
-        if !value.starts_with('#') || value.len() != 7 {
-            result.add_error(format!(
-                "Invalid hex color in neutral.{}: '{}' (must be #RRGGBB)",
-                key, value
-            ));
-        }
-    }
-    for (ramp_name, ramp) in &theme.palette.other {
-        for (key, value) in &ramp.0 {
-            if !value.starts_with('#') || value.len() != 7 {
-                result.add_error(format!(
-                    "Invalid hex color in {}.{}: '{}' (must be #RRGGBB)",
-                    ramp_name, key, value
-                ));
-            }
-        }
-    }
-
-    Ok(result)
+    result
 }
 
-fn validate_no_direct_hex(theme: &Theme) -> Result<ValidationResult> {
+fn validate_references(theme: &Theme) -> ValidationResult {
     let mut result = ValidationResult::new();
 
-    // Helper to check if a value is a direct hex color
-    let is_hex = |s: &str| s.starts_with('#');
+    // Helper: check that a reference can be resolved
+    let check_ref = |label: &str, value: &str| -> Option<ValidationIssue> {
+        if value.starts_with('#') {
+            return None; // direct hex always valid
+        }
+        if theme.resolve(value).is_none() {
+            Some(ValidationIssue::Error(format!(
+                "Unresolvable reference in {}: '{}'",
+                label, value
+            )))
+        } else {
+            None
+        }
+    };
 
-    // Check ANSI colors
-    if is_hex(&theme.ansi.black) {
-        result.add_error("ANSI black uses direct hex (must use palette reference)".to_string());
-    }
-    if is_hex(&theme.ansi.red) {
-        result.add_error("ANSI red uses direct hex (must use palette reference)".to_string());
-    }
-    if is_hex(&theme.ansi.green) {
-        result.add_error("ANSI green uses direct hex (must use palette reference)".to_string());
-    }
-    if is_hex(&theme.ansi.yellow) {
-        result.add_error("ANSI yellow uses direct hex (must use palette reference)".to_string());
-    }
-    if is_hex(&theme.ansi.blue) {
-        result.add_error("ANSI blue uses direct hex (must use palette reference)".to_string());
-    }
-    if is_hex(&theme.ansi.magenta) {
-        result.add_error("ANSI magenta uses direct hex (must use palette reference)".to_string());
-    }
-    if is_hex(&theme.ansi.cyan) {
-        result.add_error("ANSI cyan uses direct hex (must use palette reference)".to_string());
-    }
-    if is_hex(&theme.ansi.white) {
-        result.add_error("ANSI white uses direct hex (must use palette reference)".to_string());
-    }
-    if is_hex(&theme.ansi.bright_black) {
-        result
-            .add_error("ANSI brightBlack uses direct hex (must use palette reference)".to_string());
-    }
-    if is_hex(&theme.ansi.bright_red) {
-        result.add_error("ANSI brightRed uses direct hex (must use palette reference)".to_string());
-    }
-    if is_hex(&theme.ansi.bright_green) {
-        result
-            .add_error("ANSI brightGreen uses direct hex (must use palette reference)".to_string());
-    }
-    if is_hex(&theme.ansi.bright_yellow) {
-        result.add_error(
-            "ANSI brightYellow uses direct hex (must use palette reference)".to_string(),
-        );
-    }
-    if is_hex(&theme.ansi.bright_blue) {
-        result
-            .add_error("ANSI brightBlue uses direct hex (must use palette reference)".to_string());
-    }
-    if is_hex(&theme.ansi.bright_magenta) {
-        result.add_error(
-            "ANSI brightMagenta uses direct hex (must use palette reference)".to_string(),
-        );
-    }
-    if is_hex(&theme.ansi.bright_cyan) {
-        result
-            .add_error("ANSI brightCyan uses direct hex (must use palette reference)".to_string());
-    }
-    if is_hex(&theme.ansi.bright_white) {
-        result
-            .add_error("ANSI brightWhite uses direct hex (must use palette reference)".to_string());
-    }
-
-    // Check semantic colors
-    if let Some(semantic) = &theme.semantic {
-        for (name, value) in semantic {
-            if is_hex(value) {
-                result.add_error(format!(
-                    "Semantic {} uses direct hex (must use palette reference)",
-                    name
-                ));
+    // palette
+    if let Some(Palette(palette)) = &theme.palette {
+        for (ramp_name, ramp) in palette.iter() {
+            for (i, color) in ramp.iter().enumerate() {
+                check_ref(format!("palette.{}.{}", ramp_name, i).as_str(), color);
             }
         }
     }
-
-    // Check UI colors
-    if let Some(ui) = &theme.ui {
-        for (name, value) in ui {
-            if is_hex(value) {
-                result.add_error(format!(
-                    "UI {} uses direct hex (must use palette reference)",
-                    name
-                ));
-            }
+    // base16
+    if let Some(Base16(base16)) = &theme.base16 {
+        for (key, value) in base16 {
+            check_ref(format!("base16.{}", key).as_str(), value);
         }
     }
 
-    // Check base16 colors
-    if let Some(base16) = &theme.base16 {
-        for (name, value) in &base16.0 {
-            if is_hex(value) {
-                result.add_error(format!(
-                    "Base16 {} uses direct hex (must use palette reference)",
-                    name
-                ));
+    // semantic
+    macro_rules! check {
+        ($label:expr, $val:expr) => {
+            if let Some(issue) = check_ref($label, $val) {
+                result.issues.push(issue);
             }
-        }
+        };
     }
 
-    Ok(result)
+    check!("semantic.error", &theme.semantic.error);
+    check!("semantic.warning", &theme.semantic.warning);
+    check!("semantic.info", &theme.semantic.info);
+    check!("semantic.success", &theme.semantic.success);
+    check!("semantic.highlight", &theme.semantic.highlight);
+    check!("semantic.link", &theme.semantic.link);
+
+    // ui
+    check!("ui.bg.primary", &theme.ui.bg.primary);
+    check!("ui.bg.secondary", &theme.ui.bg.secondary);
+    check!("ui.fg.primary", &theme.ui.fg.primary);
+    check!("ui.fg.secondary", &theme.ui.fg.secondary);
+    check!("ui.fg.muted", &theme.ui.fg.muted);
+    check!("ui.border.primary", &theme.ui.border.primary);
+    check!("ui.border.muted", &theme.ui.border.muted);
+    check!("ui.cursor.primary", &theme.ui.cursor.primary);
+    check!("ui.cursor.muted", &theme.ui.cursor.muted);
+    check!("ui.selection.bg", &theme.ui.selection.bg);
+    check!("ui.selection.fg", &theme.ui.selection.fg);
+
+    result
 }
 
 fn validate_contrast(theme: &Theme) -> Result<ValidationResult> {
     let mut result = ValidationResult::new();
 
-    // Validate neutral ramp (for contrast checking only - existence checked elsewhere)
-    let neutral = &theme.palette.neutral.0;
+    let resolve = |r: &str| theme.resolve(r).unwrap_or_default();
 
-    // Only check contrast if we have enough tones for meaningful testing
-    let required_tones = ["1", "2", "3", "4", "5"];
-    let has_all_tones = required_tones.iter().all(|t| neutral.contains_key(*t));
+    let bg_primary = resolve(&theme.ui.bg.primary);
+    let bg_secondary = resolve(&theme.ui.bg.secondary);
 
-    if has_all_tones {
-        let luminances: Result<Vec<f64>> = required_tones
-            .iter()
-            .map(|t| neutral.get(*t).unwrap())
-            .map(|hex| relative_luminance(hex))
-            .collect();
-
-        let luminances = luminances?;
-
-        // Check span: L5 - L1 >= 0.40
-        let span = luminances[4] - luminances[0];
-        if span < 0.40 {
-            result.add_error(format!(
-                "Neutral ramp span too small: {:.3} (must be >= 0.40)",
-                span
-            ));
-        }
-
-        // Check adjacent steps: Ln - Ln-1 >= 0.01
-        for i in 1..luminances.len() {
-            let step = luminances[i] - luminances[i - 1];
-            if step < 0.01 {
-                result.add_warning(format!(
-                    "Neutral ramp step {}->{} too small: {:.3} (recommended >= 0.01)",
-                    i,
-                    i + 1,
-                    step
-                ));
-            }
-        }
+    if bg_primary.is_empty() || bg_secondary.is_empty() {
+        return Ok(result);
     }
 
-    // ANSI white/black contrast
-    let black_hex = theme.resolve(&theme.ansi.black).unwrap_or_default();
-    let white_hex = theme.resolve(&theme.ansi.white).unwrap_or_default();
-    let black_lum = relative_luminance(&black_hex)?;
-    let white_lum = relative_luminance(&white_hex)?;
-    let ansi_contrast = contrast_ratio(black_lum, white_lum);
-
-    if ansi_contrast < 2.5 {
-        result.add_error(format!(
-            "ANSI black/white contrast too low: {:.2} (must be >= 2.5)",
-            ansi_contrast
-        ));
-    } else if ansi_contrast < 3.5 {
-        result.add_warning(format!(
-            "ANSI black/white contrast low: {:.2} (recommended >= 3.5)",
-            ansi_contrast
-        ));
+    // fg.primary / bg.* — recommended >4.5, warn <3.5, error <3.0
+    let fg_primary = resolve(&theme.ui.fg.primary);
+    if !fg_primary.is_empty() {
+        check_contrast(
+            &mut result,
+            "ui.fg.primary / bg.primary",
+            &fg_primary,
+            &bg_primary,
+            3.5,
+            3.0,
+        )?;
+        check_contrast(
+            &mut result,
+            "ui.fg.primary / bg.secondary",
+            &fg_primary,
+            &bg_secondary,
+            3.5,
+            3.0,
+        )?;
     }
 
-    // Semantic colors vs ui.bg.primary
-    if let (Some(semantic), Some(ui)) = (&theme.semantic, &theme.ui) {
-        if let Some(bg_primary_ref) = ui.get("bg.primary") {
-            let bg_primary = theme.resolve(bg_primary_ref).unwrap_or_default();
-            let bg_lum = relative_luminance(&bg_primary)?;
-
-            for (name, color_ref) in semantic {
-                let color = theme.resolve(color_ref).unwrap_or_default();
-                let color_lum = relative_luminance(&color)?;
-                let contrast = contrast_ratio(bg_lum, color_lum);
-
-                if contrast < 2.0 {
-                    result.add_error(format!(
-                        "Semantic '{}' vs bg.primary contrast too low: {:.2} (must be >= 2.0)",
-                        name, contrast
-                    ));
-                } else if contrast < 2.5 {
-                    result.add_warning(format!(
-                        "Semantic '{}' vs bg.primary contrast low: {:.2} (recommended >= 2.5)",
-                        name, contrast
-                    ));
-                }
-            }
-        }
+    // fg.muted / bg.* — recommended >3.0, warn <2.5, error <2.0
+    let fg_muted = resolve(&theme.ui.fg.muted);
+    if !fg_muted.is_empty() {
+        check_contrast(
+            &mut result,
+            "ui.fg.muted / bg.primary",
+            &fg_muted,
+            &bg_primary,
+            2.5,
+            2.0,
+        )?;
     }
 
-    // ui.fg.primary vs ui.bg.primary
-    if let Some(ui) = &theme.ui {
-        if let Some(fg_ref) = ui.get("fg.primary") {
-            if let Some(bg_ref) = ui.get("bg.primary") {
-                let fg = theme.resolve(fg_ref).unwrap_or_default();
-                let bg = theme.resolve(bg_ref).unwrap_or_default();
-                let fg_lum = relative_luminance(&fg)?;
-                let bg_lum = relative_luminance(&bg)?;
-                let contrast = contrast_ratio(fg_lum, bg_lum);
+    // cursor.primary / bg.* — recommended >4.5, warn <3.5, error <3.0
+    let cursor_primary = resolve(&theme.ui.cursor.primary);
+    if !cursor_primary.is_empty() {
+        check_contrast(
+            &mut result,
+            "ui.cursor.primary / bg.primary",
+            &cursor_primary,
+            &bg_primary,
+            3.5,
+            3.0,
+        )?;
+    }
 
-                if contrast < 3.0 {
-                    result.add_error(format!(
-                        "UI fg.primary/bg.primary contrast too low: {:.2} (must be >= 3.0)",
-                        contrast
-                    ));
-                } else if contrast < 3.5 {
-                    result.add_warning(format!(
-                        "UI fg.primary/bg.primary contrast low: {:.2} (recommended >= 3.5)",
-                        contrast
-                    ));
-                }
-            }
+    // cursor.muted / bg.* — recommended >3.0, warn <2.5, error <2.0
+    let cursor_muted = resolve(&theme.ui.cursor.muted);
+    if !cursor_muted.is_empty() {
+        check_contrast(
+            &mut result,
+            "ui.cursor.muted / bg.primary",
+            &cursor_muted,
+            &bg_primary,
+            2.5,
+            2.0,
+        )?;
+    }
+
+    // border.* / bg.* — recommended >3.0, warn <2.5, error <2.0
+    let border_primary = resolve(&theme.ui.border.primary);
+    if !border_primary.is_empty() {
+        check_contrast(
+            &mut result,
+            "ui.border.primary / bg.primary",
+            &border_primary,
+            &bg_primary,
+            2.5,
+            2.0,
+        )?;
+    }
+
+    // selection.fg / selection.bg — recommended >3.0, warn <2.5, error <2.0
+    let sel_bg = resolve(&theme.ui.selection.bg);
+    let sel_fg = resolve(&theme.ui.selection.fg);
+    if !sel_bg.is_empty() && !sel_fg.is_empty() {
+        check_contrast(
+            &mut result,
+            "ui.selection.fg / selection.bg",
+            &sel_fg,
+            &sel_bg,
+            2.5,
+            2.0,
+        )?;
+    }
+
+    // semantic.* / bg.primary — recommended >4.5, warn <2.5, error <2.0
+    for (name, color_ref) in [
+        ("error", &theme.semantic.error),
+        ("warning", &theme.semantic.warning),
+        ("info", &theme.semantic.info),
+        ("success", &theme.semantic.success),
+        ("highlight", &theme.semantic.highlight),
+        ("link", &theme.semantic.link),
+    ] {
+        let color = resolve(color_ref);
+        if !color.is_empty() {
+            check_contrast(
+                &mut result,
+                &format!("semantic.{} / bg.primary", name),
+                &color,
+                &bg_primary,
+                2.5,
+                2.0,
+            )?;
         }
     }
 
     Ok(result)
 }
 
-pub fn run(file_path: &str, schema_path: &str) -> Result<()> {
+pub fn run(file_path: &str, schema_path: Option<String>) -> Result<()> {
     let content = tca_loader::load_theme_file(file_path)?;
 
-    let theme: Theme = serde_yaml::from_str(&content).context("Failed to parse theme file")?;
+    let theme: Theme = toml::from_str(&content).context("Failed to parse theme file as TOML")?;
 
     let mut all_issues = ValidationResult::new();
 
-    // Schema validation
-    let schema_path = PathBuf::from(schema_path);
-    match validate_schema(&content, &schema_path) {
-        Ok(result) => {
-            all_issues.issues.extend(result.issues);
+    // Schema validation (optional — skip gracefully if schema unavailable)
+    if let Some(schema_path) = schema_path {
+        let schema_path_buf = PathBuf::from(schema_path);
+        match validate_schema(&content, &schema_path_buf) {
+            Ok(r) => all_issues.issues.extend(r.issues),
+            Err(e) => all_issues.add_warning(format!("Could not validate from schema {}", e)),
         }
-        Err(e) => {
-            all_issues.add_warning(format!("Schema validation skipped: {}", e));
-        }
+    } else {
+        all_issues.add_warning("Schema validation skipped.".into());
     }
 
-    // Palette structure validation (strict)
-    let result = validate_palette_structure(&theme)?;
-    all_issues.issues.extend(result.issues);
+    // ANSI values must be hex
+    all_issues.issues.extend(validate_ansi_hex(&theme).issues);
 
-    // Direct hex validation (strict)
-    let result = validate_no_direct_hex(&theme)?;
-    all_issues.issues.extend(result.issues);
+    // Reference resolution
+    all_issues.issues.extend(validate_references(&theme).issues);
 
-    // Contrast validation
-    let result = validate_contrast(&theme)?;
-    all_issues.issues.extend(result.issues);
+    // Contrast (recommended)
+    let contrast_result = validate_contrast(&theme)?;
+    all_issues.issues.extend(contrast_result.issues);
 
     // Print results
     if all_issues.issues.is_empty() {

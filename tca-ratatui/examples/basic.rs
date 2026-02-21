@@ -13,7 +13,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             TcaTheme::from_file(theme_path)?
         }
         None => {
-            return Err("Usage: basic path/to/theme.yaml".into());
+            return Err("Usage: basic path/to/theme.toml".into());
         }
     };
 
@@ -23,10 +23,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     println!("\nPalette:");
-    println!("  Neutral: {:?}", theme.palette.neutral.tones());
     for name in theme.palette.ramp_names() {
         if let Some(ramp) = theme.palette.get_ramp(name) {
-            println!("  {}: {:?}", name, ramp.tones());
+            println!("  {}: {} entries", name, ramp.len());
         }
     }
 

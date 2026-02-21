@@ -10,7 +10,7 @@
 //!
 //! # fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // Load a TCA theme from a file
-//! let theme = TcaTheme::from_file("theme.yaml")?;
+//! let theme = TcaTheme::from_file("theme.toml")?;
 //!
 //! // Use ANSI colors
 //! let error_style = Style::default().fg(theme.ansi.red);
@@ -35,7 +35,7 @@ pub mod widgets;
 #[cfg(test)]
 mod tests;
 
-pub use theme::{Ansi, ColorRamp, Meta, Palette, Semantic, TcaTheme, Ui};
+pub use theme::{Ansi, Base16, ColorRamp, Meta, Palette, Semantic, TcaTheme, TcaThemeBuilder, Ui};
 
 #[cfg(feature = "loader")]
 pub use theme::ThemeLoader;

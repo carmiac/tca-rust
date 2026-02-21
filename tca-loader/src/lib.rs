@@ -4,47 +4,47 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 /// Get the TCA data directory path.
-/// 
+///
 /// Returns `$XDG_DATA_HOME/tca` on Linux/BSD, or the platform-equivalent on other OSes.
 /// Creates the directory if it doesn't exist.
 pub fn get_data_dir() -> Result<PathBuf> {
     let project_dirs = ProjectDirs::from("", "", "tca")
         .context("Failed to determine project directories")?;
-    
+
     let data_dir = project_dirs.data_dir();
-    
+
     if !data_dir.exists() {
         fs::create_dir_all(data_dir)
             .context(format!("Failed to create data directory: {:?}", data_dir))?;
     }
-    
+
     Ok(data_dir.to_path_buf())
 }
 
 /// Get the themes directory path.
-/// 
+///
 /// Returns `$XDG_DATA_HOME/tca/themes` (or platform equivalent).
 /// Creates the directory if it doesn't exist.
 pub fn get_themes_dir() -> Result<PathBuf> {
     let data_dir = get_data_dir()?;
     let themes_dir = data_dir.join("themes");
-    
+
     if !themes_dir.exists() {
         fs::create_dir_all(&themes_dir)
             .context(format!("Failed to create themes directory: {:?}", themes_dir))?;
     }
-    
+
     Ok(themes_dir)
 }
 
 /// List all available theme files in the shared themes directory.
-/// 
-/// Returns paths to all `.yaml` and `.yml` files in the themes directory.
+///
+/// Returns paths to all `.toml` files in the themes directory.
 pub fn list_themes() -> Result<Vec<PathBuf>> {
     let themes_dir = get_themes_dir()?;
-    
+
     let mut themes = Vec::new();
-    
+
     if let Ok(entries) = fs::read_dir(&themes_dir) {
         for entry in entries.flatten() {
             let path = entry.path();
@@ -52,41 +52,37 @@ pub fn list_themes() -> Result<Vec<PathBuf>> {
                 continue;
             }
             if let Some(ext) = path.extension() {
-                if ext == "yaml" || ext == "yml" {
+                if ext == "toml" {
                     themes.push(path);
                 }
             }
         }
     }
-    
+
     themes.sort();
     Ok(themes)
 }
 
 /// Find a theme by name (with or without extension).
-/// 
-/// Searches for `<name>.yaml` or `<name>.yml` in the themes directory.
+///
+/// Searches for `<name>.toml` in the themes directory.
 /// Returns the full path if found.
 pub fn find_theme(name: &str) -> Result<PathBuf> {
     let themes_dir = get_themes_dir()?;
-    
-    // Try the name as-is first
-    let mut candidates = vec![
-        themes_dir.join(name),
-    ];
-    
-    // If no extension, try adding .yaml and .yml
-    if !name.ends_with(".yaml") && !name.ends_with(".yml") {
-        candidates.push(themes_dir.join(format!("{}.yaml", name)));
-        candidates.push(themes_dir.join(format!("{}.yml", name)));
+
+    let mut candidates = vec![themes_dir.join(name)];
+
+    // If no extension, try adding .toml
+    if !name.ends_with(".toml") {
+        candidates.push(themes_dir.join(format!("{}.toml", name)));
     }
-    
+
     for candidate in candidates {
         if candidate.exists() && candidate.is_file() {
             return Ok(candidate);
         }
     }
-    
+
     Err(anyhow::anyhow!(
         "Theme '{}' not found in {:?}. Available themes: {:?}",
         name,
@@ -98,7 +94,7 @@ pub fn find_theme(name: &str) -> Result<PathBuf> {
 /// List all theme names (without paths or extensions).
 pub fn list_theme_names() -> Result<Vec<String>> {
     let themes = list_themes()?;
-    
+
     Ok(themes
         .iter()
         .filter_map(|p| {
@@ -111,30 +107,30 @@ pub fn list_theme_names() -> Result<Vec<String>> {
 
 /// Load a theme file from any of these locations (in order):
 /// 1. Exact path if it exists
-/// 2. Shared themes directory ($XDG_DATA_HOME/tca/themes/)
+/// 2. Shared themes directory (`$XDG_DATA_HOME/tca/themes/`)
 /// 3. Current directory
-/// 
+///
 /// Returns the file contents as a string.
 pub fn load_theme_file(path_or_name: &str) -> Result<String> {
     let path = Path::new(path_or_name);
-    
+
     // 1. Try exact path
     if path.exists() && path.is_file() {
         return fs::read_to_string(path)
             .context(format!("Failed to read theme file: {:?}", path));
     }
-    
+
     // 2. Try shared themes directory
     if let Ok(shared_path) = find_theme(path_or_name) {
         return fs::read_to_string(&shared_path)
             .context(format!("Failed to read theme file: {:?}", shared_path));
     }
-    
+
     // 3. Try current directory
     if let Ok(content) = fs::read_to_string(path_or_name) {
         return Ok(content);
     }
-    
+
     Err(anyhow::anyhow!(
         "Theme '{}' not found. Searched:\n\
          1. Exact path: {:?}\n\
@@ -148,13 +144,13 @@ pub fn load_theme_file(path_or_name: &str) -> Result<String> {
     ))
 }
 
-/// Load and parse a theme file as YAML.
-/// 
-/// This is a generic loader - you provide the type to deserialize into.
+/// Load and parse a theme file as TOML.
+///
+/// This is a generic loader — you provide the type to deserialize into.
 pub fn load_theme<T: serde::de::DeserializeOwned>(path_or_name: &str) -> Result<T> {
     let content = load_theme_file(path_or_name)?;
-    serde_yaml::from_str(&content)
-        .context(format!("Failed to parse theme YAML: {}", path_or_name))
+    toml::from_str(&content)
+        .context(format!("Failed to parse theme TOML: {}", path_or_name))
 }
 
 #[cfg(test)]
@@ -178,10 +174,10 @@ mod tests {
     #[test]
     fn test_list_themes() {
         let themes = list_themes().unwrap();
-        // Verify that all returned paths have yaml/yml extension
+        // Verify that all returned paths have toml extension
         for theme_path in themes {
             let ext = theme_path.extension().and_then(|s| s.to_str());
-            assert!(matches!(ext, Some("yaml") | Some("yml")));
+            assert_eq!(ext, Some("toml"));
         }
     }
 

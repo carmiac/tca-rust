@@ -1,161 +1,421 @@
-use ratatui::style::Color;
-
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::theme::{Ansi, ColorRamp, Palette, Semantic, Ui};
+    use ratatui::style::Color;
+
+    use crate::theme::{Ansi, Base16, ColorRamp, Meta, Palette, Semantic, TcaThemeBuilder, Ui};
+    use std::collections::HashMap;
 
     #[test]
     fn test_color_ramp_get() {
-        let mut colors = std::collections::HashMap::new();
-        colors.insert(1, Color::Rgb(10, 10, 10));
-        colors.insert(3, Color::Rgb(128, 128, 128));
-        colors.insert(5, Color::Rgb(245, 245, 245));
-
-        let ramp = ColorRamp { colors };
-
-        assert_eq!(ramp.get(1), Some(Color::Rgb(10, 10, 10)));
-        assert_eq!(ramp.get(3), Some(Color::Rgb(128, 128, 128)));
-        assert_eq!(ramp.get(5), Some(Color::Rgb(245, 245, 245)));
-        assert_eq!(ramp.get(4), None);
+        let ramp = ColorRamp {
+            colors: vec![
+                Color::Rgb(10, 10, 10),
+                Color::Rgb(128, 128, 128),
+                Color::Rgb(245, 245, 245),
+            ],
+        };
+        assert_eq!(ramp.get(0), Some(Color::Rgb(10, 10, 10)));
+        assert_eq!(ramp.get(1), Some(Color::Rgb(128, 128, 128)));
+        assert_eq!(ramp.get(2), Some(Color::Rgb(245, 245, 245)));
+        assert_eq!(ramp.get(3), None); // out of bounds
     }
 
     #[test]
-    fn test_color_ramp_tones() {
-        let mut colors = std::collections::HashMap::new();
-        colors.insert(3, Color::Red);
-        colors.insert(1, Color::DarkGray);
-        colors.insert(5, Color::White);
+    fn test_color_ramp_indices() {
+        let ramp = ColorRamp {
+            colors: vec![Color::Red, Color::DarkGray, Color::White],
+        };
+        assert_eq!(ramp.indices(), vec![0, 1, 2]);
+        assert_eq!(ramp.len(), 3);
+    }
 
-        let ramp = ColorRamp { colors };
-        let tones = ramp.tones();
-
-        assert_eq!(tones, vec![1, 3, 5]);
+    #[test]
+    fn test_color_ramp_empty() {
+        let ramp = ColorRamp::default();
+        assert!(ramp.is_empty());
+        assert_eq!(ramp.get(0), None);
+        assert_eq!(ramp.indices(), Vec::<usize>::new());
     }
 
     #[test]
     fn test_palette_get_ramp() {
-        let neutral = ColorRamp {
-            colors: std::collections::HashMap::new(),
-        };
+        let mut ramps = HashMap::new();
+        ramps.insert(
+            "red".to_string(),
+            ColorRamp {
+                colors: vec![Color::Rgb(180, 0, 0), Color::Rgb(255, 80, 80)],
+            },
+        );
+        let palette = Palette(ramps);
 
-        let mut red_colors = std::collections::HashMap::new();
-        red_colors.insert(5, Color::Red);
-        let red_ramp = ColorRamp { colors: red_colors };
-
-        let mut ramps = std::collections::HashMap::new();
-        ramps.insert("red".to_string(), red_ramp);
-
-        let palette = Palette { neutral, ramps };
-
-        assert!(palette.get_ramp("red").is_some());
+        let ramp = palette.get_ramp("red").unwrap();
+        assert_eq!(ramp.len(), 2);
+        assert_eq!(ramp.get(0), Some(Color::Rgb(180, 0, 0)));
+        assert_eq!(ramp.get(1), Some(Color::Rgb(255, 80, 80)));
         assert!(palette.get_ramp("blue").is_none());
     }
 
     #[test]
-    fn test_palette_ramp_names() {
-        let neutral = ColorRamp {
-            colors: std::collections::HashMap::new(),
-        };
+    fn test_palette_ramp_names_sorted() {
+        let ramps: HashMap<_, _> = ["red", "blue", "green"]
+            .iter()
+            .map(|n| (n.to_string(), ColorRamp::default()))
+            .collect();
+        let palette = Palette(ramps);
+        assert_eq!(palette.ramp_names(), vec!["blue", "green", "red"]);
+    }
 
-        let mut ramps = std::collections::HashMap::new();
-        ramps.insert(
-            "red".to_string(),
-            ColorRamp {
-                colors: std::collections::HashMap::new(),
-            },
-        );
-        ramps.insert(
-            "blue".to_string(),
-            ColorRamp {
-                colors: std::collections::HashMap::new(),
-            },
-        );
-        ramps.insert(
-            "green".to_string(),
-            ColorRamp {
-                colors: std::collections::HashMap::new(),
-            },
-        );
+    #[test]
+    fn test_palette_default_is_empty() {
+        let palette = Palette::default();
+        assert!(palette.ramp_names().is_empty());
+    }
 
-        let palette = Palette { neutral, ramps };
-        let names = palette.ramp_names();
+    #[test]
+    fn test_base16_get() {
+        let mut map = HashMap::new();
+        map.insert("base00".to_string(), Color::Rgb(26, 26, 26));
+        let b16 = Base16(map);
+        assert_eq!(b16.get("base00"), Some(Color::Rgb(26, 26, 26)));
+        assert_eq!(b16.get("base01"), None);
+    }
 
-        assert_eq!(names, vec!["blue", "green", "red"]);
+    #[test]
+    fn test_base16_default_is_empty() {
+        let b16 = Base16::default();
+        assert_eq!(b16.get("base00"), None);
+    }
+
+    #[test]
+    fn test_ansi_default() {
+        let ansi = Ansi::default();
+        assert_eq!(ansi.red, Color::Red);
+        assert_eq!(ansi.green, Color::Green);
+        assert_eq!(ansi.blue, Color::Blue);
+        assert_eq!(ansi.black, Color::Black);
+        assert_eq!(ansi.bright_white, Color::White);
     }
 
     #[test]
     fn test_semantic_default() {
-        let semantic = Semantic::default();
-
-        assert_eq!(semantic.error, Color::Red);
-        assert_eq!(semantic.warning, Color::Yellow);
-        assert_eq!(semantic.success, Color::Green);
-        assert_eq!(semantic.info, Color::Blue);
-        assert_eq!(semantic.highlight, Color::Cyan);
-        assert_eq!(semantic.link, Color::Blue);
+        let s = Semantic::default();
+        assert_eq!(s.error, Color::Red);
+        assert_eq!(s.warning, Color::Yellow);
+        assert_eq!(s.info, Color::Blue);
+        assert_eq!(s.success, Color::Green);
+        assert_eq!(s.highlight, Color::Cyan);
+        assert_eq!(s.link, Color::Blue);
     }
 
     #[test]
     fn test_ui_default() {
         let ui = Ui::default();
-
         assert_eq!(ui.bg_primary, Color::Black);
+        assert_eq!(ui.bg_secondary, Color::Black);
         assert_eq!(ui.fg_primary, Color::White);
         assert_eq!(ui.fg_secondary, Color::Gray);
         assert_eq!(ui.fg_muted, Color::DarkGray);
         assert_eq!(ui.border_primary, Color::White);
         assert_eq!(ui.border_muted, Color::DarkGray);
+        assert_eq!(ui.cursor_primary, Color::White);
+        assert_eq!(ui.cursor_muted, Color::Gray);
+        assert_eq!(ui.selection_bg, Color::DarkGray);
+        assert_eq!(ui.selection_fg, Color::White);
     }
 
     #[test]
-    fn test_ansi_partial_eq() {
-        let ansi1 = Ansi {
-            black: Color::Black,
-            red: Color::Red,
-            green: Color::Green,
-            yellow: Color::Yellow,
-            blue: Color::Blue,
-            magenta: Color::Magenta,
-            cyan: Color::Cyan,
-            white: Color::White,
-            bright_black: Color::DarkGray,
-            bright_red: Color::LightRed,
-            bright_green: Color::LightGreen,
-            bright_yellow: Color::LightYellow,
-            bright_blue: Color::LightBlue,
-            bright_magenta: Color::LightMagenta,
-            bright_cyan: Color::LightCyan,
-            bright_white: Color::White,
-        };
-
-        let ansi2 = ansi1.clone();
-        assert_eq!(ansi1, ansi2);
+    fn test_builder_defaults() {
+        let theme = TcaThemeBuilder::new().build();
+        assert_eq!(theme.meta.name, "Unnamed Theme");
+        assert_eq!(theme.semantic.error, Color::Red);
+        assert_eq!(theme.ui.bg_primary, Color::Black);
+        assert!(theme.palette.ramp_names().is_empty());
+        assert!(theme.base16.get("base00").is_none());
     }
 
     #[test]
-    fn test_semantic_partial_eq() {
-        let sem1 = Semantic::default();
-        let sem2 = Semantic::default();
-        assert_eq!(sem1, sem2);
-
-        let sem3 = Semantic {
-            error: Color::LightRed,
-            ..Default::default()
-        };
-        assert_ne!(sem1, sem3);
+    fn test_builder_override_semantic() {
+        let theme = TcaThemeBuilder::new()
+            .semantic(Semantic {
+                error: Color::Rgb(255, 80, 80),
+                ..Default::default()
+            })
+            .build();
+        assert_eq!(theme.semantic.error, Color::Rgb(255, 80, 80));
+        assert_eq!(theme.semantic.warning, Color::Yellow); // unchanged default
     }
 
     #[test]
-    fn test_ui_partial_eq() {
-        let ui1 = Ui::default();
-        let ui2 = Ui::default();
-        assert_eq!(ui1, ui2);
+    fn test_builder_override_meta() {
+        let theme = TcaThemeBuilder::new()
+            .meta(Meta {
+                name: "Custom".to_string(),
+                dark: Some(false),
+                ..Default::default()
+            })
+            .build();
+        assert_eq!(theme.name(), "Custom");
+        assert!(!theme.is_dark());
+    }
 
-        let ui3 = Ui {
-            bg_primary: Color::Rgb(10, 10, 10),
-            ..Default::default()
-        };
-        assert_ne!(ui1, ui3);
+    #[test]
+    fn test_builder_is_dark_default() {
+        // is_dark() defaults to true when meta.dark is None
+        let theme = TcaThemeBuilder::new().build();
+        assert!(theme.is_dark());
+    }
+
+    #[test]
+    fn test_theme_name_and_author() {
+        let theme = TcaThemeBuilder::new()
+            .meta(Meta {
+                name: "Nord Dark".to_string(),
+                author: Some("Arctic Ice Studio".to_string()),
+                ..Default::default()
+            })
+            .build();
+        assert_eq!(theme.name(), "Nord Dark");
+        assert_eq!(theme.author(), Some("Arctic Ice Studio"));
+    }
+
+    #[test]
+    fn test_theme_author_none() {
+        let theme = TcaThemeBuilder::new().build();
+        assert_eq!(theme.author(), None);
+    }
+
+    #[cfg(feature = "loader")]
+    mod loader_tests {
+        use super::*;
+        use crate::theme::ThemeLoader;
+
+        fn nord_toml() -> &'static str {
+            r##"
+[theme]
+name = "Nord Dark"
+slug = "nord-dark"
+author = "TCA Project"
+version = "1.0.0"
+dark = true
+
+[ansi]
+black          = "#2e3440"
+red            = "#bf616a"
+green          = "#a3be8c"
+yellow         = "#ebcb8b"
+blue           = "#5e81ac"
+magenta        = "#b48ead"
+cyan           = "#8fbcbb"
+white          = "#d8dee9"
+bright_black   = "#434c5e"
+bright_red     = "#bf616a"
+bright_green   = "#a3be8c"
+bright_yellow  = "#ebcb8b"
+bright_blue    = "#81a1c1"
+bright_magenta = "#b48ead"
+bright_cyan    = "#88c0d0"
+bright_white   = "#eceff4"
+
+[palette]
+neutral = ["ansi.black", "#3b4252", "ansi.bright_black", "ansi.white", "ansi.bright_white"]
+frost   = ["#5e81ac", "#81a1c1", "#88c0d0", "#8fbcbb"]
+orange  = ["#d08770"]
+
+[base16]
+base00 = "palette.neutral.0"
+base08 = "ansi.red"
+base09 = "palette.orange.0"
+
+[semantic]
+error     = "ansi.red"
+warning   = "ansi.yellow"
+success   = "ansi.green"
+info      = "palette.frost.1"
+highlight = "ansi.magenta"
+link      = "palette.frost.2"
+
+[ui.bg]
+primary   = "palette.neutral.0"
+secondary = "palette.neutral.1"
+
+[ui.fg]
+primary   = "palette.neutral.4"
+secondary = "palette.neutral.3"
+muted     = "palette.neutral.2"
+
+[ui.border]
+primary = "palette.frost.0"
+muted   = "palette.neutral.2"
+
+[ui.cursor]
+primary = "palette.neutral.3"
+muted   = "palette.neutral.2"
+
+[ui.selection]
+bg = "palette.neutral.2"
+fg = "palette.neutral.4"
+"##
+        }
+
+        #[test]
+        fn test_load_from_toml_meta() {
+            let theme = ThemeLoader::from_toml(nord_toml()).unwrap();
+            assert_eq!(theme.meta.name, "Nord Dark");
+            assert_eq!(theme.meta.slug.as_deref(), Some("nord-dark"));
+            assert_eq!(theme.meta.dark, Some(true));
+        }
+
+        #[test]
+        fn test_load_ansi_hex_resolved() {
+            let theme = ThemeLoader::from_toml(nord_toml()).unwrap();
+            // #2e3440 → Rgb(46, 52, 64)
+            assert_eq!(theme.ansi.black, Color::Rgb(46, 52, 64));
+            // #bf616a → Rgb(191, 97, 106)
+            assert_eq!(theme.ansi.red, Color::Rgb(191, 97, 106));
+        }
+
+        #[test]
+        fn test_load_palette_ramps() {
+            let theme = ThemeLoader::from_toml(nord_toml()).unwrap();
+            let neutral = theme.palette.get_ramp("neutral").unwrap();
+            assert_eq!(neutral.len(), 5);
+            // index 0 = "ansi.black" = #2e3440
+            assert_eq!(neutral.get(0), Some(Color::Rgb(46, 52, 64)));
+            // index 1 = "#3b4252" literal
+            assert_eq!(neutral.get(1), Some(Color::Rgb(59, 66, 82)));
+
+            let frost = theme.palette.get_ramp("frost").unwrap();
+            assert_eq!(frost.len(), 4);
+        }
+
+        #[test]
+        fn test_load_base16() {
+            let theme = ThemeLoader::from_toml(nord_toml()).unwrap();
+            // base00 = palette.neutral.0 = ansi.black = #2e3440
+            assert_eq!(theme.base16.get("base00"), Some(Color::Rgb(46, 52, 64)));
+            // base08 = ansi.red = #bf616a
+            assert_eq!(theme.base16.get("base08"), Some(Color::Rgb(191, 97, 106)));
+            // base09 = palette.orange.0 = #d08770
+            assert_eq!(theme.base16.get("base09"), Some(Color::Rgb(208, 135, 112)));
+        }
+
+        #[test]
+        fn test_load_semantic() {
+            let theme = ThemeLoader::from_toml(nord_toml()).unwrap();
+            assert_eq!(theme.semantic.error, Color::Rgb(191, 97, 106)); // ansi.red
+            assert_eq!(theme.semantic.warning, Color::Rgb(235, 203, 139)); // ansi.yellow
+        }
+
+        #[test]
+        fn test_load_ui() {
+            let theme = ThemeLoader::from_toml(nord_toml()).unwrap();
+            // bg.primary = palette.neutral.0 = #2e3440
+            assert_eq!(theme.ui.bg_primary, Color::Rgb(46, 52, 64));
+            // fg.primary = palette.neutral.4 = ansi.bright_white = #eceff4
+            assert_eq!(theme.ui.fg_primary, Color::Rgb(236, 239, 244));
+        }
+
+        #[test]
+        fn test_load_no_palette_section() {
+            let toml = r##"
+[theme]
+name = "Minimal"
+
+[ansi]
+black   = "#000000"
+red     = "#800000"
+green   = "#008000"
+yellow  = "#808000"
+blue    = "#000080"
+magenta = "#800080"
+cyan    = "#008080"
+white   = "#c0c0c0"
+bright_black   = "#808080"
+bright_red     = "#ff0000"
+bright_green   = "#00ff00"
+bright_yellow  = "#ffff00"
+bright_blue    = "#0000ff"
+bright_magenta = "#ff00ff"
+bright_cyan    = "#00ffff"
+bright_white   = "#ffffff"
+
+[semantic]
+error     = "#ff0000"
+warning   = "#ffff00"
+info      = "#0000ff"
+success   = "#00ff00"
+highlight = "#00ffff"
+link      = "#0000ff"
+
+[ui.bg]
+primary   = "#000000"
+secondary = "#000000"
+[ui.fg]
+primary   = "#ffffff"
+secondary = "#c0c0c0"
+muted     = "#808080"
+[ui.border]
+primary = "#ffffff"
+muted   = "#808080"
+[ui.cursor]
+primary = "#ffffff"
+muted   = "#808080"
+[ui.selection]
+bg = "#808080"
+fg = "#ffffff"
+"##;
+            let theme = ThemeLoader::from_toml(toml).unwrap();
+            assert!(theme.palette.ramp_names().is_empty());
+            assert!(theme.base16.get("base00").is_none());
+        }
+
+        #[test]
+        fn test_load_invalid_ansi_hex_errors() {
+            let toml = r##"
+[theme]
+name = "Bad"
+[ansi]
+black   = "not-a-hex"
+red     = "#800000"
+green   = "#008000"
+yellow  = "#808000"
+blue    = "#000080"
+magenta = "#800080"
+cyan    = "#008080"
+white   = "#c0c0c0"
+bright_black   = "#808080"
+bright_red     = "#ff0000"
+bright_green   = "#00ff00"
+bright_yellow  = "#ffff00"
+bright_blue    = "#0000ff"
+bright_magenta = "#ff00ff"
+bright_cyan    = "#00ffff"
+bright_white   = "#ffffff"
+[semantic]
+error     = "#ff0000"
+warning   = "#ffff00"
+info      = "#0000ff"
+success   = "#00ff00"
+highlight = "#00ffff"
+link      = "#0000ff"
+[ui.bg]
+primary   = "#000000"
+secondary = "#000000"
+[ui.fg]
+primary   = "#ffffff"
+secondary = "#c0c0c0"
+muted     = "#808080"
+[ui.border]
+primary = "#ffffff"
+muted   = "#808080"
+[ui.cursor]
+primary = "#ffffff"
+muted   = "#808080"
+[ui.selection]
+bg = "#808080"
+fg = "#ffffff"
+"##;
+            assert!(ThemeLoader::from_toml(toml).is_err());
+        }
     }
 }

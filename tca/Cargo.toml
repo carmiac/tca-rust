@@ -16,7 +16,6 @@ path = "src/main.rs"
 tca-types = { workspace = true }
 tca-loader = { workspace = true }
 serde = { workspace = true }
-serde_yaml = { workspace = true }
 serde_json = { workspace = true }
 jsonschema = { workspace = true }
 clap = { workspace = true }

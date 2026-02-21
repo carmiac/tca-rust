@@ -18,14 +18,14 @@ struct Cli {
 enum Commands {
     /// Validate a TCA theme file
     Validate {
-        /// Path to the theme YAML file or theme name from shared directory
+        /// Path to the theme TOML file or theme name from shared directory
         theme: String,
         /// Path to the schema file
-        schema_path: String,
+        schema_path: Option<String>,
     },
     /// Export a theme to various formats
     Export {
-        /// Path to the theme YAML file or theme name from shared directory
+        /// Path to the theme TOML file or theme name from shared directory
         theme: String,
         /// Output format (kitty, alacritty, base16, vim, helix, starship, vscode, iterm2, tmux)
         #[arg(value_name = "FORMAT")]
@@ -43,7 +43,7 @@ fn main() -> Result<()> {
 
     match cli.command {
         Commands::Validate { theme, schema_path } => {
-            validate::run(&theme, &schema_path)?;
+            validate::run(&theme, schema_path)?;
         }
         Commands::Export {
             theme,
@@ -60,7 +60,7 @@ fn main() -> Result<()> {
                     Ok(themes) => {
                         if themes.is_empty() {
                             println!("No themes found.");
-                            println!("Add .yaml theme files to: {}", dir.display());
+                            println!("Add .toml theme files to: {}", dir.display());
                         } else {
                             println!("Available themes ({}):", themes.len());
                             for theme in themes {

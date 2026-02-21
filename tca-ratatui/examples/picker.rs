@@ -77,7 +77,7 @@ fn load_themes_from_directory(dir: &Path) -> io::Result<Vec<TcaTheme>> {
             path.extension()
                 .and_then(|s| s.to_str())
                 .unwrap_or_default(),
-            "yaml" | "yml"
+            "toml"
         ) {
             match TcaTheme::from_file(&path) {
                 Ok(theme) => themes.push(theme),
@@ -91,21 +91,26 @@ fn load_themes_from_directory(dir: &Path) -> io::Result<Vec<TcaTheme>> {
 }
 
 fn main() -> anyhow::Result<()> {
-    let themes = if let Some(dir) = env::args().nth(1) {
-        let path = Path::new(&dir);
-        if !path.is_dir() {
-            eprintln!("Error: '{}' is not a directory", dir);
-            eprintln!("Usage: {} <theme-directory>", env::args().next().unwrap());
-            return Ok(());
+    let themes_dir: Option<String> = env::args().nth(1);
+
+    let search_path = match &themes_dir {
+        Some(dir) => {
+            let path = Path::new(dir.as_str());
+            if !path.is_dir() {
+                eprintln!("Error: '{}' is not a directory", dir);
+                eprintln!("Usage: {} [theme-directory]", env::args().next().unwrap_or_default());
+                return Ok(());
+            }
+            path.to_path_buf()
         }
-        load_themes_from_directory(path)?
-    } else {
-        load_themes_from_directory(&tca_loader::get_themes_dir()?)?
+        None => tca_loader::get_themes_dir()?,
     };
 
+    let themes = load_themes_from_directory(&search_path)?;
+
     if themes.is_empty() {
-        eprintln!("No themes found in {:?}", env::args().nth(1).unwrap());
-        eprintln!("Usage: {} <theme-directory>", env::args().next().unwrap());
+        eprintln!("No themes found in {:?}", search_path);
+        eprintln!("Usage: {} [theme-directory]", env::args().next().unwrap_or_default());
         return Ok(());
     }
 

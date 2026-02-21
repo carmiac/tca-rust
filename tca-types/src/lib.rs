@@ -195,8 +195,6 @@ impl Theme {
 /// let (r, g, b) = hex_to_rgb("#ff5533").unwrap();
 /// assert_eq!((r, g, b), (255, 85, 51));
 ///
-/// let (r, g, b) = hex_to_rgb("ff5533").unwrap();
-/// assert_eq!((r, g, b), (255, 85, 51));
 /// ```
 ///
 /// # Errors

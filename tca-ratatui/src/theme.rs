@@ -1,23 +1,38 @@
-use ratatui::style::Color;
-use serde::{Deserialize, Serialize};
-
 #[cfg(feature = "loader")]
 use anyhow::{Context, Result};
+use ratatui::style::Color;
+use std::collections::HashMap;
 
 /// Theme metadata.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Meta {
     pub name: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub slug: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub author: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub version: Option<String>,
+    pub description: Option<String>,
+    pub dark: Option<bool>,
+}
+
+impl Default for Meta {
+    fn default() -> Self {
+        Self {
+            name: "Unnamed Theme".to_string(),
+            slug: None,
+            author: None,
+            version: None,
+            description: None,
+            dark: None,
+        }
+    }
 }
 
 /// ANSI 16-color definitions mapped to Ratatui colors.
-#[derive(Debug, Clone, PartialEq)]
+///
+/// All colors are resolved to concrete [`Color::Rgb`] values when loaded
+/// from a theme file. The [`Default`] impl maps to Ratatui's named colors
+/// as a fallback when no theme file is present.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Ansi {
     pub black: Color,
     pub red: Color,
@@ -37,10 +52,93 @@ pub struct Ansi {
     pub bright_white: Color,
 }
 
-/// Semantic color roles for UI elements.
+impl Default for Ansi {
+    fn default() -> Self {
+        Self {
+            black: Color::Black,
+            red: Color::Red,
+            green: Color::Green,
+            yellow: Color::Yellow,
+            blue: Color::Blue,
+            magenta: Color::Magenta,
+            cyan: Color::Cyan,
+            white: Color::Gray,
+            bright_black: Color::DarkGray,
+            bright_red: Color::LightRed,
+            bright_green: Color::LightGreen,
+            bright_yellow: Color::LightYellow,
+            bright_blue: Color::LightBlue,
+            bright_magenta: Color::LightMagenta,
+            bright_cyan: Color::LightCyan,
+            bright_white: Color::White,
+        }
+    }
+}
+
+/// A named color ramp, 0-indexed from darkest (index 0) to lightest.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct ColorRamp {
+    pub colors: Vec<Color>,
+}
+
+impl ColorRamp {
+    /// Returns the color at the given 0-based index, or `None` if out of range.
+    pub fn get(&self, idx: usize) -> Option<Color> {
+        self.colors.get(idx).copied()
+    }
+
+    pub fn len(&self) -> usize {
+        self.colors.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.colors.is_empty()
+    }
+
+    /// Returns a sorted list of all valid indices for this ramp.
+    pub fn indices(&self) -> Vec<usize> {
+        (0..self.colors.len()).collect()
+    }
+}
+
+/// Color palette of named hue ramps (`[palette]` section).
 ///
-/// Provides standard color assignments for common UI states.
-#[derive(Debug, Clone, PartialEq)]
+/// All ramps are 0-indexed and ordered darkest → lightest.
+/// An absent `[palette]` section deserializes to an empty palette.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct Palette(pub HashMap<String, ColorRamp>);
+
+impl Palette {
+    /// Returns the named ramp, or `None` if it doesn't exist.
+    pub fn get_ramp(&self, name: &str) -> Option<&ColorRamp> {
+        self.0.get(name)
+    }
+
+    /// Returns all ramp names in sorted order.
+    pub fn ramp_names(&self) -> Vec<&str> {
+        let mut names: Vec<&str> = self.0.keys().map(String::as_str).collect();
+        names.sort();
+        names
+    }
+}
+
+/// Base16 color mappings (`base00`–`base0F`).
+///
+/// An absent `[base16]` section deserializes to an empty map.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct Base16(pub HashMap<String, Color>);
+
+impl Base16 {
+    /// Returns the resolved color for the given Base16 key, or `None`.
+    pub fn get(&self, key: &str) -> Option<Color> {
+        self.0.get(key).copied()
+    }
+}
+
+/// Semantic color roles.
+///
+/// The [`Default`] impl maps to Ratatui's named colors as a fallback.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Semantic {
     pub error: Color,
     pub warning: Color,
@@ -63,10 +161,13 @@ impl Default for Semantic {
     }
 }
 
-/// UI color definitions for application chrome.
+/// UI element colors for application chrome.
 ///
-/// Covers backgrounds, foregrounds, borders, cursors, and selections.
-#[derive(Debug, Clone, PartialEq)]
+/// Field names flatten the nested TOML sub-tables (`[ui.bg]`, `[ui.fg]`, etc.)
+/// into a single struct for convenient access.
+///
+/// The [`Default`] impl provides a minimal dark-theme fallback.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Ui {
     pub bg_primary: Color,
     pub bg_secondary: Color,
@@ -99,330 +200,368 @@ impl Default for Ui {
     }
 }
 
-/// A color ramp containing shades of a single hue.
+/// A fully resolved TCA theme with Ratatui-compatible colors.
 ///
-/// Maps tone values (1-5) to RGB colors.
-/// Not all tones need to be present.
-#[derive(Debug, Clone)]
-pub struct ColorRamp {
-    pub(crate) colors: std::collections::HashMap<u8, Color>,
-}
-
-impl ColorRamp {
-    /// Get the color at a specific tone level.
-    pub fn get(&self, tone: u8) -> Option<Color> {
-        self.colors.get(&tone).copied()
-    }
-
-    /// Get all tone levels present in this ramp, sorted ascending.
-    pub fn tones(&self) -> Vec<u8> {
-        let mut tones: Vec<u8> = self.colors.keys().copied().collect();
-        tones.sort_unstable();
-        tones
-    }
-}
-
-/// Color palette containing neutral and hue-based ramps.
-///
-/// Always includes a neutral (grayscale) ramp.
-/// Hue ramps (red, blue, green, etc.) are optional.
-#[derive(Debug, Clone)]
-pub struct Palette {
-    pub neutral: ColorRamp,
-    pub ramps: std::collections::HashMap<String, ColorRamp>,
-}
-
-impl Palette {
-    /// Get a named hue ramp.
-    pub fn get_ramp(&self, name: &str) -> Option<&ColorRamp> {
-        self.ramps.get(name)
-    }
-
-    /// Get all hue ramp names, sorted alphabetically.
-    pub fn ramp_names(&self) -> Vec<&str> {
-        let mut names: Vec<&str> = self.ramps.keys().map(|s| s.as_str()).collect();
-        names.sort_unstable();
-        names
-    }
-}
-
-/// A TCA theme with Ratatui-compatible colors.
-///
-/// This is the main type for using TCA themes in Ratatui applications.
-/// All color sections are always present, with defaults applied when
-/// not specified in the theme file.
-#[derive(Debug, Clone)]
+/// All color references have been resolved to concrete [`Color`] values.
+/// Construct via [`ThemeLoader`] or [`TcaThemeBuilder`].
+#[derive(Debug, Clone, PartialEq)]
 pub struct TcaTheme {
     pub meta: Meta,
-    pub palette: Palette,
     pub ansi: Ansi,
+    /// Resolved palette ramps. Empty if the theme has no `[palette]` section.
+    pub palette: Palette,
+    /// Resolved Base16 mappings. Empty if the theme has no `[base16]` section.
+    pub base16: Base16,
     pub semantic: Semantic,
     pub ui: Ui,
 }
 
 impl TcaTheme {
-    /// Get the theme name.
+    /// Returns the theme name.
     pub fn name(&self) -> &str {
         &self.meta.name
     }
 
-    /// Get the theme author, if specified.
+    /// Returns the theme author, if provided.
     pub fn author(&self) -> Option<&str> {
         self.meta.author.as_deref()
     }
+
+    /// Returns `true` if the theme is a dark theme. Defaults to `true` when unspecified.
+    pub fn is_dark(&self) -> bool {
+        self.meta.dark.unwrap_or(true)
+    }
+
+    /// Load a TCA theme from a file path or theme name.
+    ///
+    /// Accepts an explicit path (`"themes/nord-dark.toml"`) or a bare theme
+    /// name (`"nord-dark"`) looked up from `$XDG_DATA_HOME/tca/themes/`.
+    #[cfg(feature = "loader")]
+    pub fn from_file(path: impl AsRef<std::path::Path>) -> Result<TcaTheme> {
+        ThemeLoader::from_file(path)
+    }
+
+    /// Parse a TCA theme from a TOML string.
+    #[cfg(feature = "loader")]
+    pub fn from_toml(toml: &str) -> Result<TcaTheme> {
+        ThemeLoader::from_toml(toml)
+    }
 }
 
+/// Builder for constructing a [`TcaTheme`] programmatically.
+///
+/// All sections default to sensible fallback values so you only need to
+/// supply what differs from the defaults.
+///
+/// # Example
+///
+/// ```rust
+/// use tca_ratatui::{TcaThemeBuilder, Semantic};
+/// use ratatui::style::Color;
+///
+/// let theme = TcaThemeBuilder::new()
+///     .semantic(Semantic {
+///         error: Color::Rgb(255, 80, 80),
+///         ..Default::default()
+///     })
+///     .build();
+///
+/// assert_eq!(theme.semantic.error, Color::Rgb(255, 80, 80));
+/// assert_eq!(theme.semantic.warning, Color::Yellow); // default
+/// ```
+#[derive(Debug, Clone, Default)]
+pub struct TcaThemeBuilder {
+    meta: Meta,
+    ansi: Ansi,
+    palette: Palette,
+    base16: Base16,
+    semantic: Semantic,
+    ui: Ui,
+}
+
+impl TcaThemeBuilder {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn meta(mut self, meta: Meta) -> Self {
+        self.meta = meta;
+        self
+    }
+
+    pub fn ansi(mut self, ansi: Ansi) -> Self {
+        self.ansi = ansi;
+        self
+    }
+
+    pub fn palette(mut self, palette: Palette) -> Self {
+        self.palette = palette;
+        self
+    }
+
+    pub fn base16(mut self, base16: Base16) -> Self {
+        self.base16 = base16;
+        self
+    }
+
+    pub fn semantic(mut self, semantic: Semantic) -> Self {
+        self.semantic = semantic;
+        self
+    }
+
+    pub fn ui(mut self, ui: Ui) -> Self {
+        self.ui = ui;
+        self
+    }
+
+    pub fn build(self) -> TcaTheme {
+        TcaTheme {
+            meta: self.meta,
+            ansi: self.ansi,
+            palette: self.palette,
+            base16: self.base16,
+            semantic: self.semantic,
+            ui: self.ui,
+        }
+    }
+}
+
+/// Loads and resolves TCA theme files into [`TcaTheme`].
+///
+/// Uses [`tca_loader`] for XDG-aware file discovery and [`tca_types`] for
+/// raw TOML parsing, then resolves all color references into concrete
+/// Ratatui [`Color`] values.
+///
+/// All color references that cannot be resolved (e.g. a `palette.*` ref in
+/// a theme without a `[palette]` section) silently fall back to
+/// [`Color::Reset`].
 #[cfg(feature = "loader")]
-/// Loads TCA themes from files or YAML strings.
 pub struct ThemeLoader;
 
 #[cfg(feature = "loader")]
 impl ThemeLoader {
-    /// Load a theme from a file path.
+    /// Load a theme from a file path or bare theme name.
+    ///
+    /// - Absolute/relative path → loaded directly.
+    /// - Bare name (e.g. `"nord-dark"`) → searched in `$XDG_DATA_HOME/tca/themes/`.
     pub fn from_file(path: impl AsRef<std::path::Path>) -> Result<TcaTheme> {
-        let content =
-            std::fs::read_to_string(path.as_ref()).context("Failed to read theme file")?;
-        Self::from_yaml(&content)
+        let path_str = path
+            .as_ref()
+            .to_str()
+            .context("Theme path contains non-UTF-8 characters")?;
+        let raw: tca_types::Theme =
+            tca_loader::load_theme(path_str).context("Failed to load theme file")?;
+        Self::resolve(raw)
     }
 
-    /// Load a theme from a YAML string.
-    pub fn from_yaml(content: &str) -> Result<TcaTheme> {
-        let raw: RawTheme = serde_yaml::from_str(content).context("Failed to parse theme YAML")?;
-        raw.into_theme()
-    }
-}
-
-#[cfg(feature = "loader")]
-impl TcaTheme {
-    /// Load a theme from a file path.
-    pub fn from_file(path: impl AsRef<std::path::Path>) -> Result<Self> {
-        ThemeLoader::from_file(path)
+    /// Parse and resolve a theme from a TOML string.
+    pub fn from_toml(toml: &str) -> Result<TcaTheme> {
+        let raw: tca_types::Theme = ::toml::from_str(toml).context("Failed to parse theme TOML")?;
+        Self::resolve(raw)
     }
 
-    /// Load a theme from a YAML string.
-    pub fn from_yaml(content: &str) -> Result<Self> {
-        ThemeLoader::from_yaml(content)
-    }
-}
+    fn resolve(raw: tca_types::Theme) -> Result<TcaTheme> {
+        // ANSI is required and hex-only; hard error on bad hex.
+        let ansi = parse_ansi(&raw.ansi)?;
 
-#[cfg(feature = "loader")]
-#[derive(Debug, Deserialize)]
-struct RawTheme {
-    meta: Meta,
-    palette: RawPalette,
-    ansi: RawAnsi,
-    #[serde(default)]
-    semantic: Option<RawSemantic>,
-    #[serde(default)]
-    ui: Option<RawUi>,
-}
+        // Palette and Base16 are optional; absent sections -> empty defaults.
+        let palette = parse_palette(raw.palette.as_ref(), &ansi);
+        let base16 = parse_base16(raw.base16.as_ref(), &ansi, &palette);
 
-#[cfg(feature = "loader")]
-#[derive(Debug, Deserialize)]
-struct RawPalette {
-    neutral: std::collections::HashMap<String, String>,
-    #[serde(flatten)]
-    other: std::collections::HashMap<String, std::collections::HashMap<String, String>>,
-}
+        let resolve = |r: &str| resolve_ref(r, &ansi, &palette, &base16);
 
-#[cfg(feature = "loader")]
-#[derive(Debug, Deserialize)]
-struct RawAnsi {
-    black: String,
-    red: String,
-    green: String,
-    yellow: String,
-    blue: String,
-    magenta: String,
-    cyan: String,
-    white: String,
-    #[serde(rename = "brightBlack")]
-    bright_black: String,
-    #[serde(rename = "brightRed")]
-    bright_red: String,
-    #[serde(rename = "brightGreen")]
-    bright_green: String,
-    #[serde(rename = "brightYellow")]
-    bright_yellow: String,
-    #[serde(rename = "brightBlue")]
-    bright_blue: String,
-    #[serde(rename = "brightMagenta")]
-    bright_magenta: String,
-    #[serde(rename = "brightCyan")]
-    bright_cyan: String,
-    #[serde(rename = "brightWhite")]
-    bright_white: String,
-}
-
-#[cfg(feature = "loader")]
-#[derive(Debug, Deserialize)]
-struct RawSemantic {
-    error: String,
-    warning: String,
-    info: String,
-    success: String,
-    highlight: String,
-    link: String,
-}
-
-#[cfg(feature = "loader")]
-#[derive(Debug, Deserialize)]
-struct RawUi {
-    #[serde(rename = "bg.primary")]
-    bg_primary: String,
-    #[serde(rename = "bg.secondary")]
-    bg_secondary: String,
-    #[serde(rename = "fg.primary")]
-    fg_primary: String,
-    #[serde(rename = "fg.secondary")]
-    fg_secondary: String,
-    #[serde(rename = "fg.muted")]
-    fg_muted: String,
-    #[serde(rename = "border.primary")]
-    border_primary: String,
-    #[serde(rename = "border.muted")]
-    border_muted: String,
-    #[serde(rename = "cursor.primary")]
-    cursor_primary: String,
-    #[serde(rename = "cursor.muted")]
-    cursor_muted: String,
-    #[serde(rename = "selection.bg")]
-    selection_bg: String,
-    #[serde(rename = "selection.fg")]
-    selection_fg: String,
-}
-
-#[cfg(feature = "loader")]
-impl RawTheme {
-    fn into_theme(self) -> Result<TcaTheme> {
-        let resolve = |reference: &str| -> Result<Color> {
-            if reference.starts_with("palette.") {
-                let parts: Vec<&str> = reference.split('.').collect();
-                if parts.len() != 3 {
-                    anyhow::bail!("Invalid palette reference: {}", reference);
-                }
-
-                let ramp_name = parts[1];
-                let tone = parts[2];
-
-                let hex = if ramp_name == "neutral" {
-                    self.palette.neutral.get(tone)
-                } else {
-                    self.palette
-                        .other
-                        .get(ramp_name)
-                        .and_then(|ramp| ramp.get(tone))
-                }
-                .context(format!("Color not found: {}", reference))?;
-
-                parse_hex(hex)
-            } else if reference.starts_with('#') {
-                parse_hex(reference)
-            } else {
-                anyhow::bail!("Unknown reference format: {}", reference)
-            }
+        let semantic = Semantic {
+            error: resolve(&raw.semantic.error),
+            warning: resolve(&raw.semantic.warning),
+            info: resolve(&raw.semantic.info),
+            success: resolve(&raw.semantic.success),
+            highlight: resolve(&raw.semantic.highlight),
+            link: resolve(&raw.semantic.link),
         };
 
-        let ansi = Ansi {
-            black: resolve(&self.ansi.black)?,
-            red: resolve(&self.ansi.red)?,
-            green: resolve(&self.ansi.green)?,
-            yellow: resolve(&self.ansi.yellow)?,
-            blue: resolve(&self.ansi.blue)?,
-            magenta: resolve(&self.ansi.magenta)?,
-            cyan: resolve(&self.ansi.cyan)?,
-            white: resolve(&self.ansi.white)?,
-            bright_black: resolve(&self.ansi.bright_black)?,
-            bright_red: resolve(&self.ansi.bright_red)?,
-            bright_green: resolve(&self.ansi.bright_green)?,
-            bright_yellow: resolve(&self.ansi.bright_yellow)?,
-            bright_blue: resolve(&self.ansi.bright_blue)?,
-            bright_magenta: resolve(&self.ansi.bright_magenta)?,
-            bright_cyan: resolve(&self.ansi.bright_cyan)?,
-            bright_white: resolve(&self.ansi.bright_white)?,
+        let ui = Ui {
+            bg_primary: resolve(&raw.ui.bg.primary),
+            bg_secondary: resolve(&raw.ui.bg.secondary),
+            fg_primary: resolve(&raw.ui.fg.primary),
+            fg_secondary: resolve(&raw.ui.fg.secondary),
+            fg_muted: resolve(&raw.ui.fg.muted),
+            border_primary: resolve(&raw.ui.border.primary),
+            border_muted: resolve(&raw.ui.border.muted),
+            cursor_primary: resolve(&raw.ui.cursor.primary),
+            cursor_muted: resolve(&raw.ui.cursor.muted),
+            selection_bg: resolve(&raw.ui.selection.bg),
+            selection_fg: resolve(&raw.ui.selection.fg),
         };
 
-        let semantic = self
-            .semantic
-            .map(|s| {
-                Ok::<_, anyhow::Error>(Semantic {
-                    error: resolve(&s.error)?,
-                    warning: resolve(&s.warning)?,
-                    info: resolve(&s.info)?,
-                    success: resolve(&s.success)?,
-                    highlight: resolve(&s.highlight)?,
-                    link: resolve(&s.link)?,
-                })
-            })
-            .transpose()?
-            .unwrap_or_default();
-
-        let ui = self
-            .ui
-            .map(|u| {
-                Ok::<_, anyhow::Error>(Ui {
-                    bg_primary: resolve(&u.bg_primary)?,
-                    bg_secondary: resolve(&u.bg_secondary)?,
-                    fg_primary: resolve(&u.fg_primary)?,
-                    fg_secondary: resolve(&u.fg_secondary)?,
-                    fg_muted: resolve(&u.fg_muted)?,
-                    border_primary: resolve(&u.border_primary)?,
-                    border_muted: resolve(&u.border_muted)?,
-                    cursor_primary: resolve(&u.cursor_primary)?,
-                    cursor_muted: resolve(&u.cursor_muted)?,
-                    selection_bg: resolve(&u.selection_bg)?,
-                    selection_fg: resolve(&u.selection_fg)?,
-                })
-            })
-            .transpose()?
-            .unwrap_or_default();
-
-        let mut palette_neutral_colors = std::collections::HashMap::new();
-        for (tone_str, hex) in &self.palette.neutral {
-            if let Ok(tone) = tone_str.parse::<u8>() {
-                palette_neutral_colors.insert(tone, parse_hex(hex)?);
-            }
-        }
-
-        let mut palette_ramps: std::collections::HashMap<String, ColorRamp> =
-            std::collections::HashMap::new();
-        for (ramp_name, ramp_map) in &self.palette.other {
-            let mut colors = std::collections::HashMap::new();
-            for (tone_str, hex) in ramp_map {
-                if let Ok(tone) = tone_str.parse::<u8>() {
-                    colors.insert(tone, parse_hex(hex)?);
-                }
-            }
-            palette_ramps.insert(ramp_name.clone(), ColorRamp { colors });
-        }
-
-        let palette = Palette {
-            neutral: ColorRamp {
-                colors: palette_neutral_colors,
-            },
-            ramps: palette_ramps,
+        let meta = Meta {
+            name: raw.meta.name,
+            slug: raw.meta.slug,
+            author: raw.meta.author,
+            version: raw.meta.version,
+            description: raw.meta.description,
+            dark: raw.meta.dark,
         };
 
         Ok(TcaTheme {
-            meta: self.meta,
-            palette,
+            meta,
             ansi,
+            palette,
+            base16,
             semantic,
             ui,
         })
     }
 }
 
-#[cfg(feature = "loader")]
-fn parse_hex(hex: &str) -> Result<Color> {
+/// Parse `#RRGGBB` hex into [`Color::Rgb`]. Returns `None` on malformed input.
+fn hex_to_color(hex: &str) -> Option<Color> {
     let hex = hex.trim_start_matches('#');
     if hex.len() != 6 {
-        anyhow::bail!("Invalid hex color: #{}", hex);
+        return None;
+    }
+    let r = u8::from_str_radix(&hex[0..2], 16).ok()?;
+    let g = u8::from_str_radix(&hex[2..4], 16).ok()?;
+    let b = u8::from_str_radix(&hex[4..6], 16).ok()?;
+    Some(Color::Rgb(r, g, b))
+}
+
+/// Look up an `ansi.<key>` name against a resolved [`Ansi`] struct.
+fn ansi_key(key: &str, ansi: &Ansi) -> Option<Color> {
+    match key {
+        "black" => Some(ansi.black),
+        "red" => Some(ansi.red),
+        "green" => Some(ansi.green),
+        "yellow" => Some(ansi.yellow),
+        "blue" => Some(ansi.blue),
+        "magenta" => Some(ansi.magenta),
+        "cyan" => Some(ansi.cyan),
+        "white" => Some(ansi.white),
+        "bright_black" => Some(ansi.bright_black),
+        "bright_red" => Some(ansi.bright_red),
+        "bright_green" => Some(ansi.bright_green),
+        "bright_yellow" => Some(ansi.bright_yellow),
+        "bright_blue" => Some(ansi.bright_blue),
+        "bright_magenta" => Some(ansi.bright_magenta),
+        "bright_cyan" => Some(ansi.bright_cyan),
+        "bright_white" => Some(ansi.bright_white),
+        _ => None,
+    }
+}
+
+/// Resolve a color reference string to a [`Color`].
+///
+/// Supported formats: `#RRGGBB`, `ansi.<key>`, `palette.<ramp>.<index>`, `base16.<key>`.
+/// Unresolvable references return [`Color::Reset`].
+#[cfg(feature = "loader")]
+fn resolve_ref(r: &str, ansi: &Ansi, palette: &Palette, base16: &Base16) -> Color {
+    if r.starts_with('#') {
+        return hex_to_color(r).unwrap_or(Color::Reset);
     }
 
-    let r = u8::from_str_radix(&hex[0..2], 16)?;
-    let g = u8::from_str_radix(&hex[2..4], 16)?;
-    let b = u8::from_str_radix(&hex[4..6], 16)?;
+    let parts: Vec<&str> = r.splitn(3, '.').collect();
+    match parts.as_slice() {
+        ["ansi", key] => ansi_key(key, ansi).unwrap_or(Color::Reset),
+        ["palette", ramp, idx_str] => {
+            let idx: usize = idx_str.parse().unwrap_or(usize::MAX);
+            palette
+                .get_ramp(ramp)
+                .and_then(|r| r.get(idx))
+                .unwrap_or(Color::Reset)
+        }
+        ["base16", key] => base16.get(key).unwrap_or(Color::Reset),
+        _ => Color::Reset,
+    }
+}
 
-    Ok(Color::Rgb(r, g, b))
+/// Parse a raw [`tca_types::Ansi`] into a resolved [`Ansi`].
+/// Returns an error if any hex color is malformed (spec requires hex-only in `[ansi]`).
+#[cfg(feature = "loader")]
+fn parse_ansi(raw: &tca_types::Ansi) -> Result<Ansi> {
+    let p = |hex: &str| -> Result<Color> {
+        hex_to_color(hex).with_context(|| format!("Invalid hex color in [ansi]: {:?}", hex))
+    };
+    Ok(Ansi {
+        black: p(&raw.black)?,
+        red: p(&raw.red)?,
+        green: p(&raw.green)?,
+        yellow: p(&raw.yellow)?,
+        blue: p(&raw.blue)?,
+        magenta: p(&raw.magenta)?,
+        cyan: p(&raw.cyan)?,
+        white: p(&raw.white)?,
+        bright_black: p(&raw.bright_black)?,
+        bright_red: p(&raw.bright_red)?,
+        bright_green: p(&raw.bright_green)?,
+        bright_yellow: p(&raw.bright_yellow)?,
+        bright_blue: p(&raw.bright_blue)?,
+        bright_magenta: p(&raw.bright_magenta)?,
+        bright_cyan: p(&raw.bright_cyan)?,
+        bright_white: p(&raw.bright_white)?,
+    })
+}
+
+/// Parse a raw [`tca_types::Palette`] into a resolved [`Palette`].
+/// Palette values may be `#RRGGBB` hex or `ansi.<key>` references.
+/// Values that cannot be resolved are silently skipped.
+#[cfg(feature = "loader")]
+fn parse_palette(raw: Option<&tca_types::Palette>, ansi: &Ansi) -> Palette {
+    let Some(raw_palette) = raw else {
+        return Palette::default();
+    };
+
+    let ramps = raw_palette
+        .0
+        .iter()
+        .map(|(name, values)| {
+            let colors = values
+                .iter()
+                .filter_map(|v| {
+                    if v.starts_with('#') {
+                        hex_to_color(v)
+                    } else if let Some(key) = v.strip_prefix("ansi.") {
+                        ansi_key(key, ansi)
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            (name.clone(), ColorRamp { colors })
+        })
+        .collect();
+
+    Palette(ramps)
+}
+
+/// Parse a raw [`tca_types::Base16`] into a resolved [`Base16`].
+/// Values may be `#RRGGBB`, `ansi.<key>`, or `palette.<ramp>.<index>`.
+/// Values that cannot be resolved are silently skipped.
+#[cfg(feature = "loader")]
+fn parse_base16(raw: Option<&tca_types::Base16>, ansi: &Ansi, palette: &Palette) -> Base16 {
+    let Some(raw_b16) = raw else {
+        return Base16::default();
+    };
+
+    let map = raw_b16
+        .0
+        .iter()
+        .filter_map(|(key, value)| {
+            let color = if value.starts_with('#') {
+                hex_to_color(value)?
+            } else if let Some(k) = value.strip_prefix("ansi.") {
+                ansi_key(k, ansi)?
+            } else {
+                let parts: Vec<&str> = value.splitn(3, '.').collect();
+                match parts.as_slice() {
+                    ["palette", ramp, idx_str] => {
+                        let idx: usize = idx_str.parse().ok()?;
+                        palette.get_ramp(ramp)?.get(idx)?
+                    }
+                    _ => return None,
+                }
+            };
+            Some((key.clone(), color))
+        })
+        .collect();
+
+    Base16(map)
 }
