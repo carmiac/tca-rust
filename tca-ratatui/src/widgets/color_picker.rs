@@ -4,7 +4,7 @@ use ratatui::{
     layout::{Constraint, Layout, Rect},
     style::{Style, Stylize},
     text::Line,
-    widgets::{Block, Borders, Paragraph, Widget},
+    widgets::{Block, Borders, Paragraph, Widget, Wrap},
 };
 
 /// Displays all color sections of a TCA theme.
@@ -81,20 +81,23 @@ impl Widget for ColorPicker<'_> {
         let inner = block.inner(area);
         block.render(area, buf);
 
-        let chunks = Layout::horizontal([Constraint::Percentage(50), Constraint::Percentage(50)])
-            .split(inner);
+        let chunks = Layout::horizontal([
+            Constraint::Percentage(40),
+            Constraint::Percentage(30),
+            Constraint::Percentage(30),
+        ])
+        .split(inner);
 
-        let mut left_lines = vec![
-            Line::from(format!("Theme: {}", theme.meta.name))
-                .style(Style::default().fg(title_color)),
-            Line::from(""),
-            Line::from("Palette:"),
-        ];
-
-        for name in theme.palette.ramp_names() {
-            if let Some(ramp) = theme.palette.get_ramp(name) {
-                left_lines.push(render_color_ramp(name, ramp));
-            }
+        let mut left_lines = vec![Line::from(format!("Theme: {}", theme.meta.name))
+            .style(Style::default().fg(title_color))];
+        if let Some(author) = &theme.meta.author {
+            left_lines.push(Line::from(format!("Author: {}", author)));
+        }
+        if let Some(version) = &theme.meta.version {
+            left_lines.push(Line::from(format!("Version: {}", version)));
+        }
+        if let Some(description) = &theme.meta.description {
+            left_lines.push(Line::from(format!("Description: {}", description)));
         }
 
         left_lines.push(Line::from(""));
@@ -118,8 +121,8 @@ impl Widget for ColorPicker<'_> {
             Line::from("  bright_white").style(Style::default().fg(theme.ansi.bright_white)),
         ]);
 
-        let mut right_lines = vec![Line::from("Semantic Colors:")];
-        right_lines.extend([
+        let mut center_lines = vec![Line::from("Semantic Colors:")];
+        center_lines.extend([
             Line::from("  error").style(Style::default().fg(theme.semantic.error)),
             Line::from("  warning").style(Style::default().fg(theme.semantic.warning)),
             Line::from("  success").style(Style::default().fg(theme.semantic.success)),
@@ -127,10 +130,10 @@ impl Widget for ColorPicker<'_> {
             Line::from("  highlight").style(Style::default().fg(theme.semantic.highlight)),
             Line::from("  link").style(Style::default().fg(theme.semantic.link)),
         ]);
-        right_lines.push(Line::from(""));
 
-        right_lines.push(Line::from("UI Colors:"));
-        right_lines.extend([
+        center_lines.push(Line::from(""));
+        center_lines.push(Line::from("UI Colors:"));
+        center_lines.extend([
             Line::from("  bg_primary").style(
                 Style::default()
                     .fg(theme.ui.bg_primary)
@@ -156,8 +159,28 @@ impl Widget for ColorPicker<'_> {
             Line::from("  selection_fg").style(Style::default().fg(theme.ui.selection_fg)),
         ]);
 
-        Paragraph::new(left_lines).render(chunks[0], buf);
-        Paragraph::new(right_lines).render(chunks[1], buf);
+        let mut right_lines = vec![Line::from("Base16 Colors:")];
+        let mut keys: Vec<_> = theme.base16.0.keys().collect();
+        keys.sort();
+        for key in keys {
+            if let Some(value) = theme.base16.get(key) {
+                right_lines
+                    .push(Line::from(format!("  {}", key)).style(Style::default().fg(value)));
+            }
+        }
+
+        right_lines.push(Line::from(""));
+        right_lines.push(Line::from("Palette:"));
+        for name in theme.palette.ramp_names() {
+            if let Some(ramp) = theme.palette.get_ramp(name) {
+                right_lines.push(render_color_ramp(name, ramp));
+            }
+        }
+        Paragraph::new(left_lines)
+            .wrap(Wrap { trim: false })
+            .render(chunks[0], buf);
+        Paragraph::new(center_lines).render(chunks[1], buf);
+        Paragraph::new(right_lines).render(chunks[2], buf);
     }
 }
 
