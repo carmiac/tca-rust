@@ -7,10 +7,11 @@
 //! ```rust,no_run
 //! use tca_ratatui::TcaTheme;
 //! use ratatui::style::Style;
+//! use std::path::Path;
 //!
 //! # fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // Load a TCA theme from a file
-//! let theme = TcaTheme::from_file("theme.toml")?;
+//! let theme = TcaTheme::try_from(Path::new("theme.toml"))?;
 //!
 //! // Use ANSI colors
 //! let error_style = Style::default().fg(theme.ansi.red);

@@ -11,6 +11,7 @@ members = [
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
+authors = ["carmiac"]
 repository = "https://github.com/carmiac/tca-rust"
 homepage = "https://github.com/carmiac/tca-rust"
 
