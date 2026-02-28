@@ -6,11 +6,17 @@ use std::collections::HashMap;
 /// Theme metadata.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Meta {
+    /// Human-readable theme name.
     pub name: String,
+    /// URL-safe identifier for the theme.
     pub slug: Option<String>,
+    /// Theme author name or contact.
     pub author: Option<String>,
+    /// Semantic version string (e.g. `"1.0.0"`).
     pub version: Option<String>,
+    /// Short description of the theme.
     pub description: Option<String>,
+    /// `true` for dark themes, `false` for light themes.
     pub dark: Option<bool>,
 }
 
@@ -34,22 +40,65 @@ impl Default for Meta {
 /// as a fallback when no theme file is present.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Ansi {
+    /// ANSI color 0 — black.
     pub black: Color,
+    /// ANSI color 1 — red.
     pub red: Color,
+    /// ANSI color 2 — green.
     pub green: Color,
+    /// ANSI color 3 — yellow.
     pub yellow: Color,
+    /// ANSI color 4 — blue.
     pub blue: Color,
+    /// ANSI color 5 — magenta.
     pub magenta: Color,
+    /// ANSI color 6 — cyan.
     pub cyan: Color,
+    /// ANSI color 7 — white.
     pub white: Color,
+    /// ANSI color 8 — bright black (dark gray).
     pub bright_black: Color,
+    /// ANSI color 9 — bright red.
     pub bright_red: Color,
+    /// ANSI color 10 — bright green.
     pub bright_green: Color,
+    /// ANSI color 11 — bright yellow.
     pub bright_yellow: Color,
+    /// ANSI color 12 — bright blue.
     pub bright_blue: Color,
+    /// ANSI color 13 — bright magenta.
     pub bright_magenta: Color,
+    /// ANSI color 14 — bright cyan.
     pub bright_cyan: Color,
+    /// ANSI color 15 — bright white.
     pub bright_white: Color,
+}
+
+impl Ansi {
+    /// Return the resolved color for the given ANSI key name (e.g. `"red"`, `"bright_black"`).
+    ///
+    /// Returns `None` for unknown key names.
+    pub fn get(&self, key: &str) -> Option<Color> {
+        match key {
+            "black" => Some(self.black),
+            "red" => Some(self.red),
+            "green" => Some(self.green),
+            "yellow" => Some(self.yellow),
+            "blue" => Some(self.blue),
+            "magenta" => Some(self.magenta),
+            "cyan" => Some(self.cyan),
+            "white" => Some(self.white),
+            "bright_black" => Some(self.bright_black),
+            "bright_red" => Some(self.bright_red),
+            "bright_green" => Some(self.bright_green),
+            "bright_yellow" => Some(self.bright_yellow),
+            "bright_blue" => Some(self.bright_blue),
+            "bright_magenta" => Some(self.bright_magenta),
+            "bright_cyan" => Some(self.bright_cyan),
+            "bright_white" => Some(self.bright_white),
+            _ => None,
+        }
+    }
 }
 
 impl Default for Ansi {
@@ -78,6 +127,7 @@ impl Default for Ansi {
 /// A named color ramp, 0-indexed from darkest (index 0) to lightest.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct ColorRamp {
+    /// The resolved colors in this ramp, ordered darkest (index 0) to lightest.
     pub colors: Vec<Color>,
 }
 
@@ -87,17 +137,14 @@ impl ColorRamp {
         self.colors.get(idx).copied()
     }
 
+    /// Returns the number of colors in the ramp.
     pub fn len(&self) -> usize {
         self.colors.len()
     }
 
+    /// Returns `true` if the ramp contains no colors.
     pub fn is_empty(&self) -> bool {
         self.colors.is_empty()
-    }
-
-    /// Returns a sorted list of all valid indices for this ramp.
-    pub fn indices(&self) -> Vec<usize> {
-        (0..self.colors.len()).collect()
     }
 }
 
@@ -106,7 +153,7 @@ impl ColorRamp {
 /// All ramps are 0-indexed and ordered darkest → lightest.
 /// An absent `[palette]` section deserializes to an empty palette.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct Palette(pub HashMap<String, ColorRamp>);
+pub struct Palette(pub(crate) HashMap<String, ColorRamp>);
 
 impl Palette {
     /// Returns the named ramp, or `None` if it doesn't exist.
@@ -126,7 +173,7 @@ impl Palette {
 ///
 /// An absent `[base16]` section deserializes to an empty map.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct Base16(pub HashMap<String, Color>);
+pub struct Base16(pub(crate) HashMap<String, Color>);
 
 impl Base16 {
     /// Returns the resolved color for the given Base16 key, or `None`.
@@ -140,11 +187,17 @@ impl Base16 {
 /// The [`Default`] impl maps to Ratatui's named colors as a fallback.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Semantic {
+    /// Color for error states.
     pub error: Color,
+    /// Color for warning states.
     pub warning: Color,
+    /// Color for informational states.
     pub info: Color,
+    /// Color for success states.
     pub success: Color,
+    /// Color for highlighted text.
     pub highlight: Color,
+    /// Color for hyperlinks.
     pub link: Color,
 }
 
@@ -169,16 +222,27 @@ impl Default for Semantic {
 /// The [`Default`] impl provides a minimal dark-theme fallback.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Ui {
+    /// Primary application background.
     pub bg_primary: Color,
+    /// Secondary / sidebar background.
     pub bg_secondary: Color,
+    /// Primary text color.
     pub fg_primary: Color,
+    /// Secondary text color.
     pub fg_secondary: Color,
+    /// De-emphasized / placeholder text color.
     pub fg_muted: Color,
+    /// Active / focused border color.
     pub border_primary: Color,
+    /// Inactive / de-emphasized border color.
     pub border_muted: Color,
+    /// Active cursor color.
     pub cursor_primary: Color,
+    /// Inactive cursor color.
     pub cursor_muted: Color,
+    /// Selection background.
     pub selection_bg: Color,
+    /// Selection foreground.
     pub selection_fg: Color,
 }
 
@@ -203,49 +267,135 @@ impl Default for Ui {
 /// A fully resolved TCA theme with Ratatui-compatible colors.
 ///
 /// All color references have been resolved to concrete [`Color`] values.
-/// Construct via [`ThemeLoader`] or [`TcaThemeBuilder`].
+/// Construct via [`TcaThemeBuilder`] or the `from_file`/`from_toml` methods.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TcaTheme {
+    /// Theme metadata (name, author, version, etc.).
     pub meta: Meta,
+    /// Resolved ANSI 16-color definitions.
     pub ansi: Ansi,
     /// Resolved palette ramps. Empty if the theme has no `[palette]` section.
     pub palette: Palette,
     /// Resolved Base16 mappings. Empty if the theme has no `[base16]` section.
     pub base16: Base16,
+    /// Resolved semantic color roles.
     pub semantic: Semantic,
+    /// Resolved UI element colors.
     pub ui: Ui,
 }
 
-impl TcaTheme {
-    /// Returns the theme name.
-    pub fn name(&self) -> &str {
-        &self.meta.name
+#[cfg(feature = "loader")]
+/// Load a TcaTheme from a path.
+impl TryFrom<&std::path::Path> for TcaTheme {
+    type Error = anyhow::Error;
+    fn try_from(path: &std::path::Path) -> Result<TcaTheme, Self::Error> {
+        let theme_str = std::fs::read_to_string(path)?;
+        TcaTheme::try_from(theme_str.as_str())
     }
+}
+#[cfg(feature = "loader")]
+/// Load a TcaTheme from a path.
+impl TryFrom<&std::path::PathBuf> for TcaTheme {
+    type Error = anyhow::Error;
+    fn try_from(path: &std::path::PathBuf) -> Result<TcaTheme, Self::Error> {
+        let theme_str = std::fs::read_to_string(path)?;
+        TcaTheme::try_from(theme_str.as_str())
+    }
+}
 
-    /// Returns the theme author, if provided.
-    pub fn author(&self) -> Option<&str> {
-        self.meta.author.as_deref()
+#[cfg(feature = "loader")]
+/// Load a TcaTheme from a TOML string.
+impl TryFrom<&str> for TcaTheme {
+    type Error = anyhow::Error;
+    fn try_from(value: &str) -> Result<TcaTheme, Self::Error> {
+        let raw: tca_types::Theme = toml::from_str(value)?;
+        TcaTheme::try_from(raw)
     }
+}
 
-    /// Returns `true` if the theme is a dark theme. Defaults to `true` when unspecified.
-    pub fn is_dark(&self) -> bool {
-        self.meta.dark.unwrap_or(true)
-    }
+/// Resolves a raw [`tca_types::Theme`] into a [`TcaTheme`] with Ratatui colors.
+///
+/// All color references that cannot be resolved silently fall back to defaults.
+/// Except for Ansi colors, as they are a hard requirement.
+impl TryFrom<tca_types::Theme> for TcaTheme {
+    type Error = anyhow::Error;
+    fn try_from(raw: tca_types::Theme) -> Result<TcaTheme, Self::Error> {
+        // ANSI is required and hex-only; hard error on bad hex.
+        let ansi = parse_ansi(&raw.ansi)?;
 
-    /// Load a TCA theme from a file path or theme name.
-    ///
-    /// Accepts an explicit path (`"themes/nord-dark.toml"`) or a bare theme
-    /// name (`"nord-dark"`) looked up from `$XDG_DATA_HOME/tca/themes/`.
-    #[cfg(feature = "loader")]
-    pub fn from_file(path: impl AsRef<std::path::Path>) -> Result<TcaTheme> {
-        ThemeLoader::from_file(path)
-    }
+        // Palette and Base16 are optional; absent sections -> empty defaults.
+        let palette = parse_palette(raw.palette.as_ref(), &raw.ansi);
+        let base16 = parse_base16(raw.base16.as_ref(), &raw.ansi, &palette);
 
-    /// Parse a TCA theme from a TOML string.
-    #[cfg(feature = "loader")]
-    pub fn from_toml(toml: &str) -> Result<TcaTheme> {
-        ThemeLoader::from_toml(toml)
+        let resolve = |r: &str| resolve_ref(r, &ansi, &palette, &base16);
+
+        let semantic = Semantic::default();
+        let semantic = Semantic {
+            error: resolve(&raw.semantic.error).unwrap_or(semantic.error),
+            warning: resolve(&raw.semantic.warning).unwrap_or(semantic.warning),
+            info: resolve(&raw.semantic.info).unwrap_or(semantic.info),
+            success: resolve(&raw.semantic.success).unwrap_or(semantic.success),
+            highlight: resolve(&raw.semantic.highlight).unwrap_or(semantic.highlight),
+            link: resolve(&raw.semantic.link).unwrap_or(semantic.link),
+        };
+
+        let ui = Ui::default();
+        let ui = Ui {
+            bg_primary: resolve(&raw.ui.bg.primary).unwrap_or(ui.bg_primary),
+            bg_secondary: resolve(&raw.ui.bg.secondary).unwrap_or(ui.bg_secondary),
+            fg_primary: resolve(&raw.ui.fg.primary).unwrap_or(ui.fg_primary),
+            fg_secondary: resolve(&raw.ui.fg.secondary).unwrap_or(ui.fg_secondary),
+            fg_muted: resolve(&raw.ui.fg.muted).unwrap_or(ui.fg_muted),
+            border_primary: resolve(&raw.ui.border.primary).unwrap_or(ui.border_primary),
+            border_muted: resolve(&raw.ui.border.muted).unwrap_or(ui.border_muted),
+            cursor_primary: resolve(&raw.ui.cursor.primary).unwrap_or(ui.cursor_primary),
+            cursor_muted: resolve(&raw.ui.cursor.muted).unwrap_or(ui.cursor_muted),
+            selection_bg: resolve(&raw.ui.selection.bg).unwrap_or(ui.selection_bg),
+            selection_fg: resolve(&raw.ui.selection.fg).unwrap_or(ui.selection_fg),
+        };
+
+        let meta = Meta {
+            name: raw.meta.name,
+            slug: raw.meta.slug,
+            author: raw.meta.author,
+            version: raw.meta.version,
+            description: raw.meta.description,
+            dark: raw.meta.dark,
+        };
+
+        Ok(TcaTheme {
+            meta,
+            ansi,
+            palette,
+            base16,
+            semantic,
+            ui,
+        })
     }
+}
+
+#[cfg(feature = "loader")]
+/// Loads and resolves all themes in a given directory.
+///
+/// Themes that can't be parsed are skipped.
+pub fn load_all_from_dir(dir: &str) -> anyhow::Result<Vec<TcaTheme>> {
+    let raw = tca_loader::load_all_from_dir(dir)?;
+    let themes = raw
+        .into_iter()
+        .map(TcaTheme::try_from)
+        .filter_map(Result::ok)
+        .collect();
+    Ok(themes)
+}
+
+#[cfg(feature = "loader")]
+/// Loads and resolves all themes in the user theme directory.
+///
+/// Themes that can't be parsed are skipped.
+pub fn load_all_from_theme_dir() -> anyhow::Result<Vec<TcaTheme>> {
+    let dir = tca_loader::get_themes_dir()?;
+    let dir_str = dir.to_str().context("Data directory is not valid.")?;
+    load_all_from_dir(dir_str)
 }
 
 /// Builder for constructing a [`TcaTheme`] programmatically.
@@ -280,40 +430,48 @@ pub struct TcaThemeBuilder {
 }
 
 impl TcaThemeBuilder {
+    /// Create a new builder with all sections set to their defaults.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Set the theme metadata.
     pub fn meta(mut self, meta: Meta) -> Self {
         self.meta = meta;
         self
     }
 
+    /// Set the ANSI 16-color definitions.
     pub fn ansi(mut self, ansi: Ansi) -> Self {
         self.ansi = ansi;
         self
     }
 
+    /// Set the color palette ramps.
     pub fn palette(mut self, palette: Palette) -> Self {
         self.palette = palette;
         self
     }
 
+    /// Set the Base16 color mappings.
     pub fn base16(mut self, base16: Base16) -> Self {
         self.base16 = base16;
         self
     }
 
+    /// Set the semantic color roles.
     pub fn semantic(mut self, semantic: Semantic) -> Self {
         self.semantic = semantic;
         self
     }
 
+    /// Set the UI element colors.
     pub fn ui(mut self, ui: Ui) -> Self {
         self.ui = ui;
         self
     }
 
+    /// Consume the builder and return the constructed [`TcaTheme`].
     pub fn build(self) -> TcaTheme {
         TcaTheme {
             meta: self.meta,
@@ -326,150 +484,37 @@ impl TcaThemeBuilder {
     }
 }
 
-/// Loads and resolves TCA theme files into [`TcaTheme`].
-///
-/// Uses [`tca_loader`] for XDG-aware file discovery and [`tca_types`] for
-/// raw TOML parsing, then resolves all color references into concrete
-/// Ratatui [`Color`] values.
-///
-/// All color references that cannot be resolved (e.g. a `palette.*` ref in
-/// a theme without a `[palette]` section) silently fall back to
-/// [`Color::Reset`].
-#[cfg(feature = "loader")]
-pub struct ThemeLoader;
-
-#[cfg(feature = "loader")]
-impl ThemeLoader {
-    /// Load a theme from a file path or bare theme name.
-    ///
-    /// - Absolute/relative path → loaded directly.
-    /// - Bare name (e.g. `"nord-dark"`) → searched in `$XDG_DATA_HOME/tca/themes/`.
-    pub fn from_file(path: impl AsRef<std::path::Path>) -> Result<TcaTheme> {
-        let path_str = path
-            .as_ref()
-            .to_str()
-            .context("Theme path contains non-UTF-8 characters")?;
-        let raw: tca_types::Theme =
-            tca_loader::load_theme(path_str).context("Failed to load theme file")?;
-        Self::resolve(raw)
-    }
-
-    /// Parse and resolve a theme from a TOML string.
-    pub fn from_toml(toml: &str) -> Result<TcaTheme> {
-        let raw: tca_types::Theme = ::toml::from_str(toml).context("Failed to parse theme TOML")?;
-        Self::resolve(raw)
-    }
-
-    fn resolve(raw: tca_types::Theme) -> Result<TcaTheme> {
-        // ANSI is required and hex-only; hard error on bad hex.
-        let ansi = parse_ansi(&raw.ansi)?;
-
-        // Palette and Base16 are optional; absent sections -> empty defaults.
-        let palette = parse_palette(raw.palette.as_ref(), &ansi);
-        let base16 = parse_base16(raw.base16.as_ref(), &ansi, &palette);
-
-        let resolve = |r: &str| resolve_ref(r, &ansi, &palette, &base16);
-
-        let semantic = Semantic {
-            error: resolve(&raw.semantic.error),
-            warning: resolve(&raw.semantic.warning),
-            info: resolve(&raw.semantic.info),
-            success: resolve(&raw.semantic.success),
-            highlight: resolve(&raw.semantic.highlight),
-            link: resolve(&raw.semantic.link),
-        };
-
-        let ui = Ui {
-            bg_primary: resolve(&raw.ui.bg.primary),
-            bg_secondary: resolve(&raw.ui.bg.secondary),
-            fg_primary: resolve(&raw.ui.fg.primary),
-            fg_secondary: resolve(&raw.ui.fg.secondary),
-            fg_muted: resolve(&raw.ui.fg.muted),
-            border_primary: resolve(&raw.ui.border.primary),
-            border_muted: resolve(&raw.ui.border.muted),
-            cursor_primary: resolve(&raw.ui.cursor.primary),
-            cursor_muted: resolve(&raw.ui.cursor.muted),
-            selection_bg: resolve(&raw.ui.selection.bg),
-            selection_fg: resolve(&raw.ui.selection.fg),
-        };
-
-        let meta = Meta {
-            name: raw.meta.name,
-            slug: raw.meta.slug,
-            author: raw.meta.author,
-            version: raw.meta.version,
-            description: raw.meta.description,
-            dark: raw.meta.dark,
-        };
-
-        Ok(TcaTheme {
-            meta,
-            ansi,
-            palette,
-            base16,
-            semantic,
-            ui,
-        })
-    }
-}
-
 /// Parse `#RRGGBB` hex into [`Color::Rgb`]. Returns `None` on malformed input.
 fn hex_to_color(hex: &str) -> Option<Color> {
-    let hex = hex.trim_start_matches('#');
-    if hex.len() != 6 {
-        return None;
-    }
-    let r = u8::from_str_radix(&hex[0..2], 16).ok()?;
-    let g = u8::from_str_radix(&hex[2..4], 16).ok()?;
-    let b = u8::from_str_radix(&hex[4..6], 16).ok()?;
+    let (r, g, b) = tca_types::hex_to_rgb(hex).ok()?;
     Some(Color::Rgb(r, g, b))
-}
-
-/// Look up an `ansi.<key>` name against a resolved [`Ansi`] struct.
-fn ansi_key(key: &str, ansi: &Ansi) -> Option<Color> {
-    match key {
-        "black" => Some(ansi.black),
-        "red" => Some(ansi.red),
-        "green" => Some(ansi.green),
-        "yellow" => Some(ansi.yellow),
-        "blue" => Some(ansi.blue),
-        "magenta" => Some(ansi.magenta),
-        "cyan" => Some(ansi.cyan),
-        "white" => Some(ansi.white),
-        "bright_black" => Some(ansi.bright_black),
-        "bright_red" => Some(ansi.bright_red),
-        "bright_green" => Some(ansi.bright_green),
-        "bright_yellow" => Some(ansi.bright_yellow),
-        "bright_blue" => Some(ansi.bright_blue),
-        "bright_magenta" => Some(ansi.bright_magenta),
-        "bright_cyan" => Some(ansi.bright_cyan),
-        "bright_white" => Some(ansi.bright_white),
-        _ => None,
-    }
 }
 
 /// Resolve a color reference string to a [`Color`].
 ///
 /// Supported formats: `#RRGGBB`, `ansi.<key>`, `palette.<ramp>.<index>`, `base16.<key>`.
-/// Unresolvable references return [`Color::Reset`].
 #[cfg(feature = "loader")]
-fn resolve_ref(r: &str, ansi: &Ansi, palette: &Palette, base16: &Base16) -> Color {
+fn resolve_ref(r: &str, ansi: &Ansi, palette: &Palette, base16: &Base16) -> Result<Color> {
+    use anyhow::anyhow;
+
     if r.starts_with('#') {
-        return hex_to_color(r).unwrap_or(Color::Reset);
+        return hex_to_color(r).with_context(|| format!("Invalid hex color {:?}", r));
     }
 
     let parts: Vec<&str> = r.splitn(3, '.').collect();
     match parts.as_slice() {
-        ["ansi", key] => ansi_key(key, ansi).unwrap_or(Color::Reset),
+        ["ansi", key] => ansi.get(key).ok_or(anyhow!("Unknown ansi key {:?}", key)),
         ["palette", ramp, idx_str] => {
             let idx: usize = idx_str.parse().unwrap_or(usize::MAX);
             palette
                 .get_ramp(ramp)
                 .and_then(|r| r.get(idx))
-                .unwrap_or(Color::Reset)
+                .ok_or(anyhow!("Unknown palette ramp:key {:?}:{:?}", ramp, idx))
         }
-        ["base16", key] => base16.get(key).unwrap_or(Color::Reset),
-        _ => Color::Reset,
+        ["base16", key] => base16
+            .get(key)
+            .ok_or(anyhow!("Unknown base16 key {:?}", key)),
+        _ => Err(anyhow!("Unknown reference {:?}", parts)),
     }
 }
 
@@ -504,14 +549,13 @@ fn parse_ansi(raw: &tca_types::Ansi) -> Result<Ansi> {
 /// Palette values may be `#RRGGBB` hex or `ansi.<key>` references.
 /// Values that cannot be resolved are silently skipped.
 #[cfg(feature = "loader")]
-fn parse_palette(raw: Option<&tca_types::Palette>, ansi: &Ansi) -> Palette {
+fn parse_palette(raw: Option<&tca_types::Palette>, raw_ansi: &tca_types::Ansi) -> Palette {
     let Some(raw_palette) = raw else {
         return Palette::default();
     };
 
     let ramps = raw_palette
-        .0
-        .iter()
+        .entries()
         .map(|(name, values)| {
             let colors = values
                 .iter()
@@ -519,13 +563,13 @@ fn parse_palette(raw: Option<&tca_types::Palette>, ansi: &Ansi) -> Palette {
                     if v.starts_with('#') {
                         hex_to_color(v)
                     } else if let Some(key) = v.strip_prefix("ansi.") {
-                        ansi_key(key, ansi)
+                        hex_to_color(raw_ansi.get(key)?)
                     } else {
                         None
                     }
                 })
                 .collect();
-            (name.clone(), ColorRamp { colors })
+            (name.to_string(), ColorRamp { colors })
         })
         .collect();
 
@@ -536,19 +580,22 @@ fn parse_palette(raw: Option<&tca_types::Palette>, ansi: &Ansi) -> Palette {
 /// Values may be `#RRGGBB`, `ansi.<key>`, or `palette.<ramp>.<index>`.
 /// Values that cannot be resolved are silently skipped.
 #[cfg(feature = "loader")]
-fn parse_base16(raw: Option<&tca_types::Base16>, ansi: &Ansi, palette: &Palette) -> Base16 {
+fn parse_base16(
+    raw: Option<&tca_types::Base16>,
+    raw_ansi: &tca_types::Ansi,
+    palette: &Palette,
+) -> Base16 {
     let Some(raw_b16) = raw else {
         return Base16::default();
     };
 
     let map = raw_b16
-        .0
-        .iter()
+        .entries()
         .filter_map(|(key, value)| {
             let color = if value.starts_with('#') {
                 hex_to_color(value)?
             } else if let Some(k) = value.strip_prefix("ansi.") {
-                ansi_key(k, ansi)?
+                hex_to_color(raw_ansi.get(k)?)?
             } else {
                 let parts: Vec<&str> = value.splitn(3, '.').collect();
                 match parts.as_slice() {
@@ -559,7 +606,7 @@ fn parse_base16(raw: Option<&tca_types::Base16>, ansi: &Ansi, palette: &Palette)
                     _ => return None,
                 }
             };
-            Some((key.clone(), color))
+            Some((key.to_string(), color))
         })
         .collect();
 

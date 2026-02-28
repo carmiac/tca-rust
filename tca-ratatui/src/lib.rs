@@ -27,6 +27,8 @@
 //! # }
 //! ```
 
+#![warn(missing_docs)]
+
 mod theme;
 
 #[cfg(feature = "widgets")]
@@ -38,7 +40,7 @@ mod tests;
 pub use theme::{Ansi, Base16, ColorRamp, Meta, Palette, Semantic, TcaTheme, TcaThemeBuilder, Ui};
 
 #[cfg(feature = "loader")]
-pub use theme::ThemeLoader;
+pub use theme::{load_all_from_dir, load_all_from_theme_dir};
 
 #[cfg(feature = "widgets")]
 pub use widgets::ColorPicker;

@@ -1,4 +1,4 @@
-use tca_types::*;
+use tca_types::{hex_to_rgb, Theme};
 use anyhow::{Context, Result};
 use std::fs;
 use std::io::{self, Write};
@@ -7,7 +7,7 @@ use std::io::{self, Write};
 fn resolve_color(reference: &str, theme: &Theme) -> Result<String> {
     theme
         .resolve(reference)
-        .context(format!("Failed to resolve color reference: '{}'", reference))
+        .with_context(|| format!("Failed to resolve color reference: '{}'", reference))
 }
 
 fn export_base16(theme: &Theme) -> Result<String> {
@@ -26,9 +26,8 @@ fn export_base16(theme: &Theme) -> Result<String> {
     for i in 0..16 {
         let key = format!("base{:02X}", i);
         let reference = base16
-            .0
             .get(&key)
-            .context(format!("Missing base16 color: {}", key))?;
+            .with_context(|| format!("Missing base16 color: {}", key))?;
         let color = resolve_color(reference, theme)?;
         let hex = color.trim_start_matches('#');
         output.push_str(&format!("base{:02X}: \"{}\"\n", i, hex));
@@ -283,16 +282,9 @@ fn export_iterm2(theme: &Theme) -> Result<String> {
     output.push_str("<plist version=\"1.0\">\n");
     output.push_str("<dict>\n");
 
-    let hex_to_rgb_f = |hex: &str| -> Result<(f64, f64, f64)> {
-        let hex = hex.trim_start_matches('#');
-        let r = u8::from_str_radix(&hex[0..2], 16)? as f64 / 255.0;
-        let g = u8::from_str_radix(&hex[2..4], 16)? as f64 / 255.0;
-        let b = u8::from_str_radix(&hex[4..6], 16)? as f64 / 255.0;
-        Ok((r, g, b))
-    };
-
     let write_color = |output: &mut String, key: &str, hex: &str| -> Result<()> {
-        let (r, g, b) = hex_to_rgb_f(hex)?;
+        let (r8, g8, b8) = hex_to_rgb(hex).with_context(|| format!("Invalid hex color: {}", hex))?;
+        let (r, g, b) = (r8 as f64 / 255.0, g8 as f64 / 255.0, b8 as f64 / 255.0);
         output.push_str(&format!("\t<key>{}</key>\n", key));
         output.push_str("\t<dict>\n");
         output.push_str("\t\t<key>Color Space</key><string>sRGB</string>\n");
@@ -401,7 +393,7 @@ pub fn run(file_path: &str, format: &str, output: Option<&str>) -> Result<()> {
 
     if let Some(output_path) = output {
         fs::write(output_path, exported)
-            .context(format!("Failed to write to file: {:?}", output_path))?;
+            .with_context(|| format!("Failed to write to file: {:?}", output_path))?;
         eprintln!("Exported to {:?}", output_path);
     } else {
         io::stdout().write_all(exported.as_bytes())?;

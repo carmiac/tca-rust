@@ -1,9 +1,10 @@
 [package]
 name = "tca-ratatui"
-version = "0.1.0"
+version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+homepage.workspace = true
 description = "TCA theme support for Ratatui terminal UI framework"
 keywords = ["tui", "theme", "ratatui", "terminal", "colors"]
 categories = ["command-line-interface", "config"]

@@ -85,7 +85,8 @@ impl Widget for ColorPicker<'_> {
             .split(inner);
 
         let mut left_lines = vec![
-            Line::from(format!("Theme: {}", theme.name())).style(Style::default().fg(title_color)),
+            Line::from(format!("Theme: {}", theme.meta.name))
+                .style(Style::default().fg(title_color)),
             Line::from(""),
             Line::from("Palette:"),
         ];
@@ -162,10 +163,8 @@ impl Widget for ColorPicker<'_> {
 
 fn render_color_ramp(name: &str, ramp: &ColorRamp) -> Line<'static> {
     let mut spans = vec![ratatui::text::Span::raw(format!("  {}: ", name))];
-    for idx in ramp.indices() {
-        if let Some(color) = ramp.get(idx) {
-            spans.push(ratatui::text::Span::styled("█", Style::default().fg(color)));
-        }
+    for &color in &ramp.colors {
+        spans.push(ratatui::text::Span::styled("█", Style::default().fg(color)));
     }
     Line::from(spans)
 }

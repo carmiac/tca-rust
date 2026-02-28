@@ -1,39 +1,45 @@
+//! XDG-compliant theme loader for Terminal Colors Architecture.
+//!
+//! Provides filesystem operations for discovering and loading TCA themes
+//! from XDG data directories.
+
+#![warn(missing_docs)]
+
 use anyhow::{Context, Result};
 use directories::ProjectDirs;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-/// Get the TCA data directory path.
+/// Resolve the TCA data directory path without creating it.
 ///
-/// Returns `$XDG_DATA_HOME/tca` on Linux/BSD, or the platform-equivalent on other OSes.
-/// Creates the directory if it doesn't exist.
-pub fn get_data_dir() -> Result<PathBuf> {
-    let project_dirs = ProjectDirs::from("", "", "tca")
-        .context("Failed to determine project directories")?;
-
-    let data_dir = project_dirs.data_dir();
-
-    if !data_dir.exists() {
-        fs::create_dir_all(data_dir)
-            .context(format!("Failed to create data directory: {:?}", data_dir))?;
-    }
-
-    Ok(data_dir.to_path_buf())
+/// Returns `$XDG_DATA_HOME/tca` on Linux/BSD, or the platform-equivalent on other OS.
+fn resolve_data_dir() -> Result<PathBuf> {
+    let project_dirs =
+        ProjectDirs::from("", "", "tca").context("Failed to determine project directories")?;
+    Ok(project_dirs.data_dir().to_path_buf())
 }
 
-/// Get the themes directory path.
+/// Get the TCA data directory path, creating it if it does not exist.
+///
+/// Returns `$XDG_DATA_HOME/tca` on Linux/BSD, or the platform-equivalent on other OS.
+pub fn get_data_dir() -> Result<PathBuf> {
+    let data_dir = resolve_data_dir()?;
+    if !data_dir.exists() {
+        fs::create_dir_all(&data_dir)
+            .with_context(|| format!("Failed to create data directory: {:?}", data_dir))?;
+    }
+    Ok(data_dir)
+}
+
+/// Get the themes directory path, creating it if it does not exist.
 ///
 /// Returns `$XDG_DATA_HOME/tca/themes` (or platform equivalent).
-/// Creates the directory if it doesn't exist.
 pub fn get_themes_dir() -> Result<PathBuf> {
-    let data_dir = get_data_dir()?;
-    let themes_dir = data_dir.join("themes");
-
+    let themes_dir = resolve_data_dir()?.join("themes");
     if !themes_dir.exists() {
         fs::create_dir_all(&themes_dir)
-            .context(format!("Failed to create themes directory: {:?}", themes_dir))?;
+            .with_context(|| format!("Failed to create themes directory: {:?}", themes_dir))?;
     }
-
     Ok(themes_dir)
 }
 
@@ -63,24 +69,22 @@ pub fn list_themes() -> Result<Vec<PathBuf>> {
     Ok(themes)
 }
 
-/// Find a theme by name (with or without extension).
+/// Find a theme by name (with or without `.toml` extension).
 ///
 /// Searches for `<name>.toml` in the themes directory.
 /// Returns the full path if found.
 pub fn find_theme(name: &str) -> Result<PathBuf> {
     let themes_dir = get_themes_dir()?;
 
-    let mut candidates = vec![themes_dir.join(name)];
+    // If no extension, also try with .toml appended
+    let candidate = if !name.ends_with(".toml") {
+        themes_dir.join(format!("{}.toml", name))
+    } else {
+        themes_dir.join(name)
+    };
 
-    // If no extension, try adding .toml
-    if !name.ends_with(".toml") {
-        candidates.push(themes_dir.join(format!("{}.toml", name)));
-    }
-
-    for candidate in candidates {
-        if candidate.exists() && candidate.is_file() {
-            return Ok(candidate);
-        }
+    if candidate.exists() && candidate.is_file() {
+        return Ok(candidate);
     }
 
     Err(anyhow::anyhow!(
@@ -97,45 +101,35 @@ pub fn list_theme_names() -> Result<Vec<String>> {
 
     Ok(themes
         .iter()
-        .filter_map(|p| {
-            p.file_stem()
-                .and_then(|s| s.to_str())
-                .map(String::from)
-        })
+        .filter_map(|p| p.file_stem().and_then(|s| s.to_str()).map(String::from))
         .collect())
 }
 
-/// Load a theme file from any of these locations (in order):
-/// 1. Exact path if it exists
+/// Load a theme file from one of these locations (searched in order):
+///
+/// 1. Exact path, if the argument resolves to an existing file
 /// 2. Shared themes directory (`$XDG_DATA_HOME/tca/themes/`)
-/// 3. Current directory
 ///
 /// Returns the file contents as a string.
 pub fn load_theme_file(path_or_name: &str) -> Result<String> {
     let path = Path::new(path_or_name);
 
-    // 1. Try exact path
+    // 1. Try exact path (handles absolute paths and relative paths from cwd)
     if path.exists() && path.is_file() {
         return fs::read_to_string(path)
-            .context(format!("Failed to read theme file: {:?}", path));
+            .with_context(|| format!("Failed to read theme file: {:?}", path));
     }
 
     // 2. Try shared themes directory
     if let Ok(shared_path) = find_theme(path_or_name) {
         return fs::read_to_string(&shared_path)
-            .context(format!("Failed to read theme file: {:?}", shared_path));
-    }
-
-    // 3. Try current directory
-    if let Ok(content) = fs::read_to_string(path_or_name) {
-        return Ok(content);
+            .with_context(|| format!("Failed to read theme file: {:?}", shared_path));
     }
 
     Err(anyhow::anyhow!(
         "Theme '{}' not found. Searched:\n\
          1. Exact path: {:?}\n\
          2. Shared themes: {:?}\n\
-         3. Current directory\n\
          Available shared themes: {:?}",
         path_or_name,
         path,
@@ -144,13 +138,48 @@ pub fn load_theme_file(path_or_name: &str) -> Result<String> {
     ))
 }
 
-/// Load and parse a theme file as TOML.
+/// Load all themes from a given directory as raw [`tca_types::Theme`] values.
 ///
-/// This is a generic loader — you provide the type to deserialize into.
-pub fn load_theme<T: serde::de::DeserializeOwned>(path_or_name: &str) -> Result<T> {
-    let content = load_theme_file(path_or_name)?;
-    toml::from_str(&content)
-        .context(format!("Failed to parse theme TOML: {}", path_or_name))
+/// Entries that cannot be read or parsed are skipped with a message to stderr.
+pub fn load_all_from_dir(dir: &str) -> Result<Vec<tca_types::Theme>> {
+    let mut items: Vec<tca_types::Theme> = vec![];
+    for entry in fs::read_dir(dir)? {
+        let path = match entry {
+            Err(e) => {
+                eprintln!("Could not read dir entry: {}", e);
+                continue;
+            }
+            Ok(e) => e.path(),
+        };
+        if path.is_file() & path.extension().is_some_and(|x| x == "toml") {
+            match fs::read_to_string(&path) {
+                Err(e) => {
+                    eprintln!("Could not read: {:?}.\nError: {}", path, e);
+                    continue;
+                }
+                Ok(theme_str) => match toml::from_str(&theme_str) {
+                    Err(e) => {
+                        eprintln!("Could not parse: {:?}.\nError: {}", path, e);
+                        continue;
+                    }
+                    Ok(item) => items.push(item),
+                },
+            }
+        }
+    }
+    Ok(items)
+}
+
+/// Load all locally installed themes from the shared theme directory.
+///
+/// Returns raw [`tca_types::Theme`] values. Entries that cannot be read or
+/// parsed are skipped with a message to stderr.
+pub fn load_all_from_theme_dir() -> Result<Vec<tca_types::Theme>> {
+    let dir = get_themes_dir()?;
+    let dir_str = dir
+        .to_str()
+        .context("Data directory path is not valid UTF-8")?;
+    load_all_from_dir(dir_str)
 }
 
 #[cfg(test)]

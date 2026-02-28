@@ -1,8 +1,8 @@
 use anyhow::{Context, Result};
 use colored::Colorize;
 use std::fs;
-use std::path::PathBuf;
-use tca_types::*;
+use std::path::{Path, PathBuf};
+use tca_types::{hex_to_rgb, Theme};
 
 #[derive(Debug)]
 enum ValidationIssue {
@@ -48,7 +48,8 @@ impl ValidationResult {
 }
 
 fn relative_luminance(hex: &str) -> Result<f64> {
-    let (r, g, b) = hex_to_rgb(hex).unwrap_or_else(|_| panic!("Can't parse hex value {}", hex));
+    let (r, g, b) =
+        hex_to_rgb(hex).map_err(|e| anyhow::anyhow!("Can't parse hex value {}: {}", hex, e))?;
 
     let to_linear = |c: u8| -> f64 {
         let c = c as f64 / 255.0;
@@ -95,7 +96,7 @@ fn check_contrast(
     Ok(())
 }
 
-fn validate_schema(theme_content: &str, schema_path: &PathBuf) -> Result<ValidationResult> {
+fn validate_schema(theme_content: &str, schema_path: &Path) -> Result<ValidationResult> {
     let mut result = ValidationResult::new();
 
     let schema_content = fs::read_to_string(schema_path).context("Failed to read schema file")?;
@@ -108,13 +109,11 @@ fn validate_schema(theme_content: &str, schema_path: &PathBuf) -> Result<Validat
     let theme_value: serde_json::Value =
         serde_json::to_value(&toml_value).context("Failed to convert TOML to JSON value")?;
 
-    let compiled = jsonschema::JSONSchema::compile(&schema)
+    let validator = jsonschema::validator_for(&schema)
         .map_err(|e| anyhow::anyhow!("Failed to compile schema: {}", e))?;
 
-    if let Err(errors) = compiled.validate(&theme_value) {
-        for error in errors {
-            result.add_error(format!("Schema validation: {}", error));
-        }
+    for error in validator.iter_errors(&theme_value) {
+        result.add_error(format!("Schema validation: {}", error));
     }
 
     Ok(result)
@@ -186,21 +185,6 @@ fn validate_references(theme: &Theme) -> ValidationResult {
         }
     };
 
-    // palette
-    if let Some(Palette(palette)) = &theme.palette {
-        for (ramp_name, ramp) in palette.iter() {
-            for (i, color) in ramp.iter().enumerate() {
-                check_ref(format!("palette.{}.{}", ramp_name, i).as_str(), color);
-            }
-        }
-    }
-    // base16
-    if let Some(Base16(base16)) = &theme.base16 {
-        for (key, value) in base16 {
-            check_ref(format!("base16.{}", key).as_str(), value);
-        }
-    }
-
     // semantic
     macro_rules! check {
         ($label:expr, $val:expr) => {
@@ -208,6 +192,21 @@ fn validate_references(theme: &Theme) -> ValidationResult {
                 result.issues.push(issue);
             }
         };
+    }
+
+    // palette
+    if let Some(palette) = &theme.palette {
+        for (ramp_name, ramp) in palette.entries() {
+            for (i, color) in ramp.iter().enumerate() {
+                check!(format!("palette.{}.{}", ramp_name, i).as_str(), color);
+            }
+        }
+    }
+    // base16
+    if let Some(base16) = &theme.base16 {
+        for (key, value) in base16.entries() {
+            check!(format!("base16.{}", key).as_str(), value);
+        }
     }
 
     check!("semantic.error", &theme.semantic.error);
@@ -394,7 +393,7 @@ pub fn run(file_path: &str, schema_path: Option<String>) -> Result<()> {
         println!();
         if all_issues.has_errors() {
             println!("{} Validation failed with errors", "✗".red().bold());
-            std::process::exit(1);
+            Err(anyhow::anyhow!("Validation failed with errors"))
         } else {
             println!("{} Validation passed with warnings", "⚠".yellow().bold());
             Ok(())

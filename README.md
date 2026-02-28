@@ -10,7 +10,7 @@ This workspace contains 4 crates:
 
 - **[tca-types](tca-types/)** - Core types and data structures
 - **[tca-loader](tca-loader/)** - XDG-compliant theme loading
-- **[tca](tca/)** - CLI tool for validation and export  
+- **[tca](tca/)** - CLI tool for validation and export
 - **[tca-ratatui](tca-ratatui/)** - Ratatui UI library with widgets
 
 ## Quick Start
@@ -26,15 +26,15 @@ cargo install --path tca
 ```toml
 # For basic types
 [dependencies]
-tca-types = { path = "../tca-rust/tca-types" }
+tca-types = "0.1"
 
 # For theme loading
 [dependencies]
-tca-loader = { path = "../tca-rust/tca-loader" }
+tca-loader = "0.1"
 
 # For Ratatui apps
 [dependencies]
-tca-ratatui = { path = "../tca-rust/tca-ratatui" }
+tca-ratatui = "0.1"
 ```
 
 ## Development
@@ -58,6 +58,10 @@ cargo build --release -p tca
 - [tca-themes](https://github.com/carmiac/tca-themes) - Theme collection
 - [tca-go](https://github.com/carmiac/tca-go) - Go implementation
 - [tca-python](https://github.com/carmiac/tca-python) - Python implementation
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for a history of notable changes.
 
 ## License
 

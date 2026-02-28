@@ -2,7 +2,6 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 
 mod export;
-mod shared;
 mod validate;
 
 #[derive(Parser)]

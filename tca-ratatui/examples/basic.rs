@@ -10,15 +10,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let theme = match theme_path {
         Some(theme_path) => {
             println!("Loading TCA theme from: {:?}", theme_path);
-            TcaTheme::from_file(theme_path)?
+            TcaTheme::try_from(&theme_path)?
         }
         None => {
             return Err("Usage: basic path/to/theme.toml".into());
         }
     };
 
-    println!("\nTheme: {}", theme.name());
-    if let Some(author) = theme.author() {
+    println!("\nTheme: {}", theme.meta.name);
+    if let Some(author) = theme.meta.author {
         println!("Author: {}", author);
     }
 

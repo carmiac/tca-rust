@@ -4,7 +4,7 @@ Ratatui adapter for Terminal Colors Architecture (TCA) themes.
 
 ## Overview
 
-This crate provides types and widgets for using TCA themes in Ratatui applications. It converts TCA theme files (YAML) into Ratatui-compatible `Color` values.
+This crate provides types and widgets for using TCA themes in Ratatui applications. It converts TCA theme files (TOML) into Ratatui-compatible `Color` values.
 
 ## Installation
 
@@ -32,7 +32,7 @@ tca-ratatui = { version = "0.1", default-features = false }
 use tca_ratatui::TcaTheme;
 use ratatui::style::Style;
 
-let theme = TcaTheme::from_file("theme.yaml")?;
+let theme = TcaTheme::from_file("theme.toml")?;
 
 // Access color sections directly
 let error_style = Style::default().fg(theme.ansi.red);
@@ -76,7 +76,6 @@ See `examples/` directory:
 
 - `basic.rs` - Theme loading and color access
 - `picker.rs` - Interactive theme picker application
-- `palette.rs` - Palette exploration
 
 Run with:
 

@@ -18,12 +18,12 @@ tca-types = "0.1"
 ```rust
 use tca_types::Theme;
 
-// Themes are typically deserialized from YAML
-let theme: Theme = serde_yaml::from_str(yaml_content)?;
+// Themes are deserialized from TOML
+let theme: Theme = toml::from_str(toml_content)?;
 
 // Resolve palette references to hex colors
-let color = theme.resolve("palette.red.5")?; // Returns "#ff5555"
-let direct = theme.resolve("#ff0000")?;       // Returns "#ff0000"
+let color = theme.resolve("palette.red.5"); // Returns Some("#ff5555")
+let direct = theme.resolve("#ff0000");       // Returns Some("#ff0000")
 
 // Convert hex to RGB
 use tca_types::hex_to_rgb;
