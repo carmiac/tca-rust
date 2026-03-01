@@ -1,7 +1,7 @@
-use tca_types::{hex_to_rgb, Theme};
 use anyhow::{Context, Result};
 use std::fs;
 use std::io::{self, Write};
+use tca_types::{hex_to_rgb, Theme};
 
 /// Resolve a color reference to its `#RRGGBB` hex value.
 fn resolve_color(reference: &str, theme: &Theme) -> Result<String> {
@@ -197,7 +197,10 @@ fn export_helix(theme: &Theme) -> Result<String> {
 
 fn export_starship(theme: &Theme) -> Result<String> {
     let mut output = String::new();
-    output.push_str(&format!("# Starship configuration for {}\n", theme.meta.name));
+    output.push_str(&format!(
+        "# Starship configuration for {}\n",
+        theme.meta.name
+    ));
     output.push_str("# Generated from TCA theme\n");
     output.push_str("# Add this to your starship.toml\n\n");
 
@@ -248,7 +251,10 @@ fn export_vscode(theme: &Theme) -> Result<String> {
     let sel_bg = resolve_color(&theme.ui.selection.bg, theme)?;
     colors.insert("editor.background".to_string(), serde_json::json!(bg));
     colors.insert("editor.foreground".to_string(), serde_json::json!(fg));
-    colors.insert("editor.selectionBackground".to_string(), serde_json::json!(sel_bg));
+    colors.insert(
+        "editor.selectionBackground".to_string(),
+        serde_json::json!(sel_bg),
+    );
 
     let terminal_colors = [
         ("terminal.ansiBlack", &theme.ansi.black),
@@ -283,14 +289,21 @@ fn export_iterm2(theme: &Theme) -> Result<String> {
     output.push_str("<dict>\n");
 
     let write_color = |output: &mut String, key: &str, hex: &str| -> Result<()> {
-        let (r8, g8, b8) = hex_to_rgb(hex).with_context(|| format!("Invalid hex color: {}", hex))?;
+        let (r8, g8, b8) =
+            hex_to_rgb(hex).with_context(|| format!("Invalid hex color: {}", hex))?;
         let (r, g, b) = (r8 as f64 / 255.0, g8 as f64 / 255.0, b8 as f64 / 255.0);
         output.push_str(&format!("\t<key>{}</key>\n", key));
         output.push_str("\t<dict>\n");
         output.push_str("\t\t<key>Color Space</key><string>sRGB</string>\n");
         output.push_str(&format!("\t\t<key>Red Component</key><real>{}</real>\n", r));
-        output.push_str(&format!("\t\t<key>Green Component</key><real>{}</real>\n", g));
-        output.push_str(&format!("\t\t<key>Blue Component</key><real>{}</real>\n", b));
+        output.push_str(&format!(
+            "\t\t<key>Green Component</key><real>{}</real>\n",
+            g
+        ));
+        output.push_str(&format!(
+            "\t\t<key>Blue Component</key><real>{}</real>\n",
+            b
+        ));
         output.push_str("\t</dict>\n");
         Ok(())
     };
@@ -343,28 +356,58 @@ fn export_tmux(theme: &Theme) -> Result<String> {
     let inactive_border = &theme.ansi.bright_black;
 
     output.push_str("# Status bar\n");
-    output.push_str(&format!("set-option -g status-style \"bg={},fg={}\"\n", bg_primary, fg_primary));
-    output.push_str(&format!("set-option -g status-left-style \"bg={},fg={}\"\n", bg_primary, fg_primary));
-    output.push_str(&format!("set-option -g status-right-style \"bg={},fg={}\"\n", bg_primary, fg_primary));
+    output.push_str(&format!(
+        "set-option -g status-style \"bg={},fg={}\"\n",
+        bg_primary, fg_primary
+    ));
+    output.push_str(&format!(
+        "set-option -g status-left-style \"bg={},fg={}\"\n",
+        bg_primary, fg_primary
+    ));
+    output.push_str(&format!(
+        "set-option -g status-right-style \"bg={},fg={}\"\n",
+        bg_primary, fg_primary
+    ));
     output.push('\n');
 
     output.push_str("# Window status\n");
-    output.push_str(&format!("set-option -g window-status-style \"bg={},fg={}\"\n", bg_primary, fg_muted));
-    output.push_str(&format!("set-option -g window-status-current-style \"bg={},fg={}\"\n", sel_bg, fg_primary));
+    output.push_str(&format!(
+        "set-option -g window-status-style \"bg={},fg={}\"\n",
+        bg_primary, fg_muted
+    ));
+    output.push_str(&format!(
+        "set-option -g window-status-current-style \"bg={},fg={}\"\n",
+        sel_bg, fg_primary
+    ));
     output.push('\n');
 
     output.push_str("# Pane borders\n");
-    output.push_str(&format!("set-option -g pane-border-style \"fg={}\"\n", inactive_border));
-    output.push_str(&format!("set-option -g pane-active-border-style \"fg={}\"\n", active_border));
+    output.push_str(&format!(
+        "set-option -g pane-border-style \"fg={}\"\n",
+        inactive_border
+    ));
+    output.push_str(&format!(
+        "set-option -g pane-active-border-style \"fg={}\"\n",
+        active_border
+    ));
     output.push('\n');
 
     output.push_str("# Message style\n");
-    output.push_str(&format!("set-option -g message-style \"bg={},fg={}\"\n", sel_bg, fg_primary));
-    output.push_str(&format!("set-option -g message-command-style \"bg={},fg={}\"\n", bg_primary, fg_primary));
+    output.push_str(&format!(
+        "set-option -g message-style \"bg={},fg={}\"\n",
+        sel_bg, fg_primary
+    ));
+    output.push_str(&format!(
+        "set-option -g message-command-style \"bg={},fg={}\"\n",
+        bg_primary, fg_primary
+    ));
     output.push('\n');
 
     output.push_str("# Copy mode\n");
-    output.push_str(&format!("set-window-option -g mode-style \"bg={},fg={}\"\n", sel_bg, fg_primary));
+    output.push_str(&format!(
+        "set-window-option -g mode-style \"bg={},fg={}\"\n",
+        sel_bg, fg_primary
+    ));
 
     Ok(output)
 }
@@ -372,8 +415,7 @@ fn export_tmux(theme: &Theme) -> Result<String> {
 pub fn run(file_path: &str, format: &str, output: Option<&str>) -> Result<()> {
     let content = tca_loader::load_theme_file(file_path)?;
 
-    let theme: Theme =
-        toml::from_str(&content).context("Failed to parse theme file as TOML")?;
+    let theme: Theme = toml::from_str(&content).context("Failed to parse theme file as TOML")?;
 
     let exported = match format.to_lowercase().as_str() {
         "base16" => export_base16(&theme)?,
