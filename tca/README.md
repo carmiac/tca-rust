@@ -5,7 +5,7 @@ CLI tool for validating and exporting [TCA](https://github.com/carmiac/tca-rust)
 ## Installation
 
 ```sh
-cargo install tca
+cargo install tca-cli
 ```
 
 Or build from source:
