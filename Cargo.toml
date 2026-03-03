@@ -17,8 +17,8 @@ homepage = "https://github.com/carmiac/tca-rust"
 
 [workspace.dependencies]
 # Internal dependencies
-tca-types = { path = "./tca-types" }
-tca-loader = { path = "./tca-loader" }
+tca-types = { path = "./tca-types", version = "0.1.0" }
+tca-loader = { path = "./tca-loader", version = "0.1.0" }
 
 # External dependencies
 thiserror = "2.0"
