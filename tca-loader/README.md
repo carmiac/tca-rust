@@ -1,10 +1,10 @@
 # tca-loader
 
-XDG-compliant theme loader for Terminal Colors Architecture.
+XDG-compliant theme file discovery and loading for TCA.
 
 ## Overview
 
-Provides filesystem operations for discovering and loading TCA themes from XDG data directories. Follows the XDG Base Directory specification.
+Provides filesystem operations for discovering and loading TCA theme files, and reading user preferences. Used internally by `tca-ratatui` — most projects won't need to depend on this directly.
 
 ## Installation
 
@@ -13,63 +13,53 @@ Provides filesystem operations for discovering and loading TCA themes from XDG d
 tca-loader = "0.1"
 ```
 
-## Usage
+## Theme directory
 
-### Theme Discovery
+Themes are `.toml` files stored in `~/.local/share/tca-themes/` (or `$XDG_DATA_HOME/tca-themes/`). Any file placed there is automatically discoverable by all TCA-powered apps.
+
+## API
+
+### Discovery
 
 ```rust
 use tca_loader::{get_themes_dir, list_themes, list_theme_names};
 
-// Get XDG theme directory path
-let themes_dir = get_themes_dir()?;
-// Returns: ~/.local/share/tca/themes (or equivalent)
-
-// List all theme files
-let theme_paths = list_themes()?;
-
-// List theme names (without extensions)
-let names = list_theme_names()?;
+let dir   = get_themes_dir()?;          // PathBuf to the themes directory
+let paths = list_themes()?;             // Vec<PathBuf> — all .toml files
+let names = list_theme_names()?;        // Vec<String>  — names without extension
 ```
 
-### Loading Themes
+### Loading
 
 ```rust
-use tca_loader::{find_theme, load_theme};
-use tca_types::Theme;
-
-// Find theme by name (searches XDG directory)
-let path = find_theme("gruvbox")?;
-
-// Load with specific type
-let theme: Theme = load_theme("gruvbox")?;
-
-// Or load from explicit path
 use tca_loader::load_theme_file;
-let theme: Theme = load_theme_file(&path)?;
+
+// Accepts a name ("nord"), a name with extension ("nord.toml"),
+// or any file path ("/path/to/theme.toml")
+let toml_str: String = load_theme_file("nord")?;
+
+// Parse with tca-types
+let theme: tca_types::Theme = toml::from_str(&toml_str)?;
 ```
 
-### Generic Type Support
-
-Works with any deserializable type:
+### User preferences
 
 ```rust
-use serde::Deserialize;
+use tca_loader::TcaConfig;
 
-#[derive(Deserialize)]
-struct CustomTheme {
-    name: String,
-    colors: Vec<String>,
+// Reads ~/.config/tca/tca.toml
+let config = TcaConfig::load();
+
+// Returns the best theme name for the current terminal mode
+// (dark_theme, light_theme, or default_theme depending on what's configured)
+if let Some(name) = config.mode_aware_theme() {
+    println!("preferred theme: {name}");
 }
 
-let custom: CustomTheme = load_theme("mytheme")?;
+// Persist preferences
+let config = TcaConfig { default_dark_theme: Some("nord".into()), ..Default::default() };
+config.store();
 ```
-
-## XDG Compliance
-
-Theme directory resolution follows XDG Base Directory spec:
-
-1. `$XDG_DATA_HOME/tca/themes/` (default: `~/.local/share/tca/themes/`)
-2. Falls back to first writable location if directory doesn't exist
 
 ## License
 

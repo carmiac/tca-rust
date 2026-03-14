@@ -1,67 +1,90 @@
 # TCA Rust
 
-Terminal Colors Architecture (TCA) implementation for Rust.
+Terminal Colors Architecture (TCA) for Rust: consistent, user-configurable theming for terminal applications.
 
-This repository contains the complete Rust ecosystem for TCA themes, including the core CLI tool, type definitions, theme loader, and Ratatui UI library.
+## For Developers
+
+Add one line to your app and get beautiful theming with zero configuration:
+
+```rust
+let theme = TcaTheme::new(None);
+```
+
+Your app immediately works with 11 built-in themes and any theme the user installs. You don't have to ship themes or write config parsers - TCA handles it.
+
+```rust
+// Use resolved colors directly in ratatui
+let style = Style::default()
+    .fg(theme.ui.fg_primary)
+    .bg(theme.ui.bg_primary);
+
+let error_style = Style::default().fg(theme.semantic.error);
+let border_style = Style::default().fg(theme.ui.border_primary);
+```
+
+## For Users
+
+Drop any `.toml` theme file into `~/.local/share/tca-themes/` and it becomes available to every TCA-powered app on the system with no per-app configuration needed.
+
+```bash
+# Install a theme from the tca-themes collection
+cp tokyo-night.toml ~/.local/share/tca-themes/
+
+# Your app picks it up automatically
+myapp --theme tokyo-night
+```
+
+Browse available themes at [tca-themes](https://github.com/carmiac/tca-themes).
+
+## How Theme Resolution Works
+
+`TcaTheme::new(Some("name"))` tries each step in order, falling back gracefully:
+
+1. **User theme files** - searches `~/.local/share/tca-themes/<name>.toml`, or accepts an exact file path
+2. **Built-in themes** - catppuccin-mocha, cyberpunk, dracula, everforest-dark, gruvbox-dark, mono, nord, one-dark, rose-pine, solarized-light, tokyo-night
+3. **User preference** - reads `~/.config/tca/tca.toml` for a configured default
+4. **Auto-detect** - picks a dark or light built-in based on the terminal's background color
+
+Passing `None` skips steps 1-2 and goes straight to the user's preference or auto-detection.
 
 ## Packages
 
-This workspace contains 4 crates:
+| Crate                           | Purpose                                   |
+| ------------------------------- | ----------------------------------------- |
+| **[tca-ratatui](tca-ratatui/)** | Ratatui integration - `TcaTheme`, widgets |
+| **[tca-loader](tca-loader/)**   | XDG theme file discovery and loading      |
+| **[tca-types](tca-types/)**     | Core TOML types and color resolution      |
+| **[tca](tca/)**                 | CLI — `validate`, `export`, `list`        |
 
-- **[tca-types](tca-types/)** - Core types and data structures
-- **[tca-loader](tca-loader/)** - XDG-compliant theme loading
-- **[tca](tca/)** - CLI tool for validation and export
-- **[tca-ratatui](tca-ratatui/)** - Ratatui UI library with widgets
-
-## Quick Start
-
-### Install the CLI Tool
-
-```bash
-cargo install --path tca
-```
-
-### Use in Your Project
+## Getting Started
 
 ```toml
-# For basic types
 [dependencies]
-tca-types = "0.1"
-
-# For theme loading
-[dependencies]
-tca-loader = "0.1"
-
-# For Ratatui apps
-[dependencies]
-tca-ratatui = "0.1"
+tca-ratatui = "0.2"
 ```
+
+```rust
+use tca_ratatui::TcaTheme;
+use ratatui::style::Style;
+
+let theme = TcaTheme::new(None);
+```
+
+That's it. See [tca-ratatui](tca-ratatui/) for the full guide.
 
 ## Development
 
 ```bash
-# Build all crates
 cargo build --workspace
-
-# Test all crates
 cargo test --workspace
-
-# Run clippy
 cargo clippy --workspace
-
-# Build CLI tool
-cargo build --release -p tca
 ```
 
-## Related Projects
+## Related
 
-- [tca-themes](https://github.com/carmiac/tca-themes) - Theme collection
+- [tca-themes](https://github.com/carmiac/tca-themes) - community theme collection
 - [tca-go](https://github.com/carmiac/tca-go) - Go implementation
 - [tca-python](https://github.com/carmiac/tca-python) - Python implementation
-
-## Changelog
-
-See [CHANGELOG.md](CHANGELOG.md) for a history of notable changes.
 
 ## License
 
