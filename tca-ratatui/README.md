@@ -6,7 +6,7 @@ Ratatui integration for [TCA](https://github.com/carmiac/tca-rust) themes. One c
 
 ```toml
 [dependencies]
-tca-ratatui = "0.1"
+tca-ratatui = "0.2"
 ```
 
 ```rust
@@ -94,12 +94,12 @@ let theme = TcaTheme::try_from(toml_str).expect("invalid theme");
 
 | Feature   | Default | Description                               |
 | --------- | ------- | ----------------------------------------- |
-| `loader`  | ✓       | File I/O, `TcaTheme::new()`, TOML parsing |
-| `widgets` | —       | `ColorPicker` widget                      |
+| `loader`  | X       | File I/O, `TcaTheme::new()`, TOML parsing |
+| `widgets` | -       | `ColorPicker` widget                      |
 
 ```toml
 # Widgets
-tca-ratatui = { version = "0.1", features = ["widgets"] }
+tca-ratatui = { version = "0.2", features = ["widgets"] }
 ```
 
 ## Examples
