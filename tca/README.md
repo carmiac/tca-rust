@@ -1,6 +1,6 @@
 # tca
 
-CLI tool for validating and exporting [TCA](https://github.com/carmiac/tca-rust) themes.
+CLI tool for validating and exporting [TCA](https://github.com/carmiac/tca-rust) theme files.
 
 ## Installation
 
@@ -8,7 +8,7 @@ CLI tool for validating and exporting [TCA](https://github.com/carmiac/tca-rust)
 cargo install tca-cli
 ```
 
-Or build from source:
+Or from source:
 
 ```sh
 git clone https://github.com/carmiac/tca-rust
@@ -16,56 +16,59 @@ cd tca-rust
 cargo install --path tca
 ```
 
-## Usage
+## Commands
+
+### `validate`
+
+Checks a theme file for correctness: hex color syntax, color reference resolution, and WCAG contrast ratios.
 
 ```sh
-tca <COMMAND> [OPTIONS]
-```
-
-### Commands
-
-#### `validate`
-
-Validate a TCA theme file, checking hex color syntax, reference resolution, and WCAG contrast ratios.
-
-```sh
-tca validate <THEME>
 tca validate path/to/theme.toml
-tca validate my-theme          # looks up my-theme.toml in the themes directory
+tca validate nord                    # looks up nord.toml in the themes directory
+tca validate nord --schema schema.json
 ```
 
-#### `export`
+### `export`
 
-Export a theme to a target application's config format.
+Converts a theme to another application's config format.
 
 ```sh
-tca export <THEME> <FORMAT>
-tca export my-theme kitty
+tca export nord kitty
 tca export path/to/theme.toml alacritty --output ~/.config/alacritty/colors.toml
 ```
 
 **Supported formats:**
 
-| Format     | Description                        |
-|------------|------------------------------------|
-| `kitty`    | Kitty terminal color scheme        |
-| `alacritty`| Alacritty terminal color scheme    |
-| `base16`   | Base16 YAML scheme                 |
-| `vim`      | Vim colorscheme                    |
-| `helix`    | Helix editor theme                 |
-| `starship` | Starship prompt palette            |
-| `vscode`   | VS Code color theme                |
-| `iterm2`   | iTerm2 color preset                |
-| `tmux`     | tmux color configuration           |
+| Format      | Output                          |
+| ----------- | ------------------------------- |
+| `kitty`     | Kitty terminal color scheme     |
+| `alacritty` | Alacritty terminal color scheme |
+| `base16`    | Base16 YAML scheme              |
+| `vim`       | Vim colorscheme                 |
+| `helix`     | Helix editor theme              |
+| `starship`  | Starship prompt palette         |
+| `vscode`    | VS Code color theme JSON        |
+| `iterm2`    | iTerm2 color preset plist       |
+| `tmux`      | tmux status/pane color config   |
 
-#### `list`
+### `list`
 
-List all installed themes from the shared themes directory (`$XDG_DATA_HOME/tca/themes/`).
+Lists all installed themes.
 
 ```sh
 tca list
 ```
 
-## Theme Directory
+## Theme directory
 
-Themes are stored as `.toml` files in `$XDG_DATA_HOME/tca/themes/` (typically `~/.local/share/tca/themes/` on Linux).
+Themes are `.toml` files in `~/.local/share/tca-themes/` (or `$XDG_DATA_HOME/tca-themes/`).
+
+## Roadmap
+
+- Init command to create default config and add default theme files
+- Download and install themes
+- Import base16/24 themes into TCA format
+
+## License
+
+MIT
