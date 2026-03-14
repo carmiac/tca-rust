@@ -1,0 +1,78 @@
+[theme]
+name = "Cyberpunk"
+slug = "cyberpunk"
+version = "1.0.0"
+dark = true
+
+[ansi]
+black = "#0d0221"
+red = "#ff003c"
+green = "#00ff64"
+yellow = "#ffe600"
+blue = "#00b4ff"
+magenta = "#ff00ff"
+cyan = "#00ffff"
+white = "#f0f0f0"
+
+bright_black = "#28144f"
+bright_red = "#ff3366"
+bright_green = "#00ff96"
+bright_yellow = "#ffee55"
+bright_blue = "#33ccff"
+bright_magenta = "#ff44ff"
+bright_cyan = "#44ffff"
+bright_white = "#ffffff"
+
+[palette]
+neutral = ["ansi.black", "#140a2e", "#28144f", "#64648c", "ansi.white"]
+neon_cyan = ["ansi.cyan", "ansi.bright_cyan"]
+neon_pink = ["ansi.magenta", "ansi.bright_magenta"]
+neon_green = ["ansi.green", "ansi.bright_green"]
+neon_blue = ["ansi.blue", "ansi.bright_blue"]
+
+[base16]
+base00 = "ansi.black"
+base01 = "palette.neutral.1"
+base02 = "palette.neutral.2"
+base03 = "palette.neutral.3"
+base04 = "ansi.cyan"
+base05 = "ansi.white"
+base06 = "ansi.bright_white"
+base07 = "ansi.bright_cyan"
+base08 = "ansi.red"
+base09 = "ansi.yellow"
+base0A = "ansi.bright_yellow"
+base0B = "ansi.green"
+base0C = "ansi.cyan"
+base0D = "ansi.blue"
+base0E = "ansi.magenta"
+base0F = "ansi.bright_magenta"
+
+[semantic]
+error = "ansi.red"
+warning = "ansi.yellow"
+success = "ansi.green"
+info = "ansi.cyan"
+highlight = "ansi.magenta"
+link = "ansi.blue"
+
+[ui.bg]
+primary = "palette.neutral.0"
+secondary = "palette.neutral.1"
+
+[ui.fg]
+primary = "ansi.white"
+secondary = "ansi.cyan"
+muted = "palette.neutral.3"
+
+[ui.border]
+primary = "ansi.cyan"
+muted = "palette.neutral.2"
+
+[ui.cursor]
+primary = "ansi.magenta"
+muted = "ansi.cyan"
+
+[ui.selection]
+bg = "palette.neutral.2"
+fg = "ansi.cyan"

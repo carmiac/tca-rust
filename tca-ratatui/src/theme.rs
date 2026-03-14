@@ -2,7 +2,8 @@
 use anyhow::{Context, Result};
 use ratatui::style::Color;
 use std::collections::HashMap;
-
+use strum::IntoEnumIterator;
+use tca_types::BuiltinTheme;
 /// Theme metadata.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Meta {
@@ -284,22 +285,41 @@ pub struct TcaTheme {
     pub ui: Ui,
 }
 
-#[cfg(feature = "loader")]
-/// Load a TcaTheme from a path.
-impl TryFrom<&std::path::Path> for TcaTheme {
-    type Error = anyhow::Error;
-    fn try_from(path: &std::path::Path) -> Result<TcaTheme, Self::Error> {
-        let theme_str = std::fs::read_to_string(path)?;
-        TcaTheme::try_from(theme_str.as_str())
-    }
-}
-#[cfg(feature = "loader")]
-/// Load a TcaTheme from a path.
-impl TryFrom<&std::path::PathBuf> for TcaTheme {
-    type Error = anyhow::Error;
-    fn try_from(path: &std::path::PathBuf) -> Result<TcaTheme, Self::Error> {
-        let theme_str = std::fs::read_to_string(path)?;
-        TcaTheme::try_from(theme_str.as_str())
+impl TcaTheme {
+    /// Creates a new theme, trying to match the passed name to a known
+    /// theme name or path and a reasonable default otherwise.
+    ///
+    /// The search fallback order is:
+    /// 1. Local theme files.
+    /// 2. Built in themes.
+    /// 3. User configured default theme.
+    /// 4. Built in default light/dark mode theme based on current mode.
+    #[cfg(feature = "loader")]
+    pub fn new(name: Option<&str>) -> Self {
+        // 1. Try loading by name/path from the themes directory
+        name.and_then(|n| tca_loader::load_theme_file(n).ok())
+            .and_then(|s| TcaTheme::try_from(s.as_str()).ok())
+            // 2. Try the named built-in theme
+            .or_else(|| {
+                name.and_then(|n| n.parse::<BuiltinTheme>().ok())
+                    .and_then(|b| TcaTheme::try_from(b.theme()).ok())
+            })
+            // 3. Try the global config default
+            //    (e.g. ~/.config/tca/config.toml has `default_theme = "nord"`)
+            .or_else(|| {
+                tca_loader::TcaConfig::load()
+                    .mode_aware_theme()
+                    .and_then(|n| n.parse::<BuiltinTheme>().ok())
+                    .and_then(|b| TcaTheme::try_from(b.theme()).ok())
+            })
+            // 4. Hardcoded default — always succeeds
+            .unwrap_or_else(|| {
+                let builtin = match dark_light::detect().unwrap_or(dark_light::Mode::Dark) {
+                    dark_light::Mode::Light => BuiltinTheme::default_light(),
+                    _ => BuiltinTheme::default_dark(),
+                };
+                TcaTheme::try_from(builtin.theme()).expect("hardcoded default must be valid")
+            })
     }
 }
 
@@ -372,6 +392,15 @@ impl TryFrom<tca_types::Theme> for TcaTheme {
             ui,
         })
     }
+}
+
+/// Get a Vec of all built-in themes.
+pub fn load_all_builtin() -> Vec<TcaTheme> {
+    BuiltinTheme::iter()
+        .map(|t| t.theme())
+        .map(TcaTheme::try_from)
+        .filter_map(Result::ok)
+        .collect()
 }
 
 #[cfg(feature = "loader")]

@@ -7,6 +7,9 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+mod builtin;
+pub use builtin::BuiltinTheme;
+
 /// Errors that can occur when parsing a hex color string.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum HexColorError {

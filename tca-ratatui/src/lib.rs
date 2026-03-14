@@ -40,6 +40,8 @@ mod tests;
 
 pub use theme::{Ansi, Base16, ColorRamp, Meta, Palette, Semantic, TcaTheme, TcaThemeBuilder, Ui};
 
+pub use theme::load_all_builtin;
+
 #[cfg(feature = "loader")]
 pub use theme::{load_all_from_dir, load_all_from_theme_dir};
 

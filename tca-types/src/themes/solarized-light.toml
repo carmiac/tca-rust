@@ -1,0 +1,87 @@
+[theme]
+name = "Solarized Light"
+slug = "solarized-light"
+author = "TCA Project"
+version = "1.0.0"
+dark = false
+
+
+[ansi]
+black = "#002b36"
+red = "#dc322f"
+green = "#859900"
+yellow = "#b58900"
+blue = "#268bd2"
+magenta = "#d33682"
+cyan = "#2aa198"
+white = "#eee8d5"
+
+bright_black = "#586e75"
+bright_red = "#cb4b16"
+bright_green = "#859900"
+bright_yellow = "#b58900"
+bright_blue = "#268bd2"
+bright_magenta = "#6c71c4"
+bright_cyan = "#2aa198"
+bright_white = "#fdf6e3"
+
+# Palette: all ramps are 0-indexed arrays, darkest→lightest
+# neutral: 0=#002b36  1=#586e75  2=#93a1a1  3=#eee8d5  4=#fdf6e3
+# single-entry ramps: 0 = only color
+[palette]
+neutral = [
+  "ansi.black",
+  "ansi.bright_black",
+  "#93a1a1",
+  "ansi.white",
+  "ansi.bright_white",
+]
+orange = ["#cb4b16"]
+violet = ["#6c71c4"]
+
+[base16]
+base00 = "palette.neutral.4"
+base01 = "palette.neutral.3"
+base02 = "palette.neutral.3"
+base03 = "palette.neutral.2"
+base04 = "palette.neutral.2"
+base05 = "palette.neutral.1"
+base06 = "palette.neutral.1"
+base07 = "palette.neutral.0"
+base08 = "ansi.red"
+base09 = "palette.orange.0"
+base0A = "ansi.yellow"
+base0B = "ansi.green"
+base0C = "ansi.cyan"
+base0D = "ansi.blue"
+base0E = "ansi.magenta"
+base0F = "palette.violet.0"
+
+[semantic]
+error = "ansi.red"
+warning = "ansi.yellow"
+success = "ansi.green"
+info = "ansi.blue"
+highlight = "ansi.yellow"
+link = "ansi.blue"
+
+[ui.bg]
+primary = "palette.neutral.4"
+secondary = "palette.neutral.3"
+
+[ui.fg]
+primary = "palette.neutral.0"
+secondary = "palette.neutral.1"
+muted = "palette.neutral.2"
+
+[ui.border]
+primary = "ansi.blue"
+muted = "palette.neutral.2"
+
+[ui.cursor]
+primary = "palette.neutral.0"
+muted = "palette.neutral.2"
+
+[ui.selection]
+bg = "palette.neutral.3"
+fg = "palette.neutral.0"

@@ -1,0 +1,94 @@
+[theme]
+name = "Rosé Pine"
+slug = "rose-pine"
+author = "Rosé Pine / TCA Project"
+version = "1.0.0"
+description = "All natural pine, faux fur and a bit of soho vibes for the classy minimalist. Based on Rosé Pine by Rosé Pine."
+dark = true
+
+[ansi]
+black = "#191724"
+red = "#eb6f92"
+green = "#31748f"
+yellow = "#f6c177"
+blue = "#9ccfd8"
+magenta = "#c4a7e7"
+cyan = "#ebbcba"
+white = "#e0def4"
+
+bright_black = "#6e6a86"
+bright_red = "#eb6f92"
+bright_green = "#31748f"
+bright_yellow = "#f6c177"
+bright_blue = "#9ccfd8"
+bright_magenta = "#c4a7e7"
+bright_cyan = "#ebbcba"
+bright_white = "#e0def4"
+
+# Palette: base→text (Rosé Pine named tones)
+# base:    0=#191724  1=#1f1d2e  2=#26233a
+# surface: 0=#403d52  1=#524f67  2=#6e6a86
+# text:    0=#908caa  1=#e0def4
+[palette]
+neutral = [
+  "#191724",
+  "#1f1d2e",
+  "#26233a",
+  "#403d52",
+  "#524f67",
+  "#6e6a86",
+  "#908caa",
+  "#e0def4",
+]
+rose = ["#5c2035", "#c4506b", "#eb6f92"]
+pine = ["#0f3040", "#20607a", "#31748f"]
+gold = ["#5c3d00", "#c29540", "#f6c177"]
+foam = ["#1a4a50", "#5da5af", "#9ccfd8"]
+iris = ["#3a2460", "#8d6dc4", "#c4a7e7"]
+
+[base16]
+base00 = "palette.neutral.1"
+base01 = "palette.neutral.2"
+base02 = "palette.neutral.3"
+base03 = "palette.neutral.4"
+base04 = "palette.neutral.6"
+base05 = "palette.neutral.7"
+base06 = "palette.neutral.7"
+base07 = "#faf4ed"
+base08 = "palette.rose.2"
+base09 = "palette.gold.2"
+base0A = "palette.gold.2"
+base0B = "palette.pine.2"
+base0C = "palette.foam.2"
+base0D = "palette.iris.2"
+base0E = "palette.iris.2"
+base0F = "ansi.bright_cyan"
+
+[semantic]
+error = "palette.rose.2"
+warning = "palette.gold.2"
+info = "palette.foam.2"
+success = "palette.pine.2"
+highlight = "palette.gold.1"
+link = "palette.foam.2"
+
+[ui.bg]
+primary = "palette.neutral.1"
+secondary = "palette.neutral.2"
+
+[ui.fg]
+primary = "palette.neutral.7"
+secondary = "palette.neutral.6"
+muted = "palette.neutral.5"
+
+[ui.border]
+primary = "palette.iris.1"
+muted = "palette.neutral.3"
+
+[ui.cursor]
+primary = "palette.rose.2"
+muted = "palette.neutral.5"
+
+[ui.selection]
+bg = "palette.neutral.3"
+fg = "palette.neutral.7"

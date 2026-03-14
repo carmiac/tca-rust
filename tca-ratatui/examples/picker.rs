@@ -2,7 +2,7 @@ use ratatui::{
     crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
     DefaultTerminal, Frame,
 };
-use tca_ratatui::{load_all_from_dir, load_all_from_theme_dir};
+use tca_ratatui::{load_all_builtin, load_all_from_dir, load_all_from_theme_dir};
 use tca_ratatui::{ColorPicker, TcaTheme};
 
 use std::{env, io};
@@ -64,11 +64,34 @@ impl App {
 }
 
 fn main() -> anyhow::Result<()> {
-    let themes_dir: Option<String> = env::args().nth(1);
+    let args: Vec<String> = env::args().collect();
 
-    let mut themes = match &themes_dir {
-        Some(dir) => load_all_from_dir(dir)?,
-        None => load_all_from_theme_dir()?,
+    if args.iter().any(|a| a == "-h" || a == "--help") {
+        println!("Usage: picker [OPTIONS] [THEME_DIR]");
+        println!();
+        println!("Arguments:");
+        println!("  [THEME_DIR]   Load themes from a specific directory");
+        println!();
+        println!("Options:");
+        println!("  --builtin     Load built-in themes instead of user themes");
+        println!("  -h, --help    Print this help message");
+        println!();
+        println!("Keys:");
+        println!("  ◀ / ▶   Previous / next theme");
+        println!("  Q        Quit");
+        return Ok(());
+    }
+
+    let builtin_flag = args.iter().any(|a| a == "--builtin");
+    let themes_dir = args.iter().skip(1).find(|a| !a.starts_with('-')).cloned();
+
+    let mut themes = if builtin_flag {
+        load_all_builtin()
+    } else {
+        match &themes_dir {
+            Some(dir) => load_all_from_dir(dir)?,
+            None => load_all_from_theme_dir()?,
+        }
     };
     themes.sort_by_key(|t| t.meta.name.to_string());
 
@@ -78,8 +101,8 @@ fn main() -> anyhow::Result<()> {
             themes_dir.unwrap_or("user theme directory.".to_string())
         );
         eprintln!(
-            "Usage: {} [theme-directory]",
-            env::args().next().unwrap_or_default()
+            "Usage: {} [--builtin] [theme-directory]",
+            args.first().map(String::as_str).unwrap_or("picker")
         );
         return Ok(());
     }

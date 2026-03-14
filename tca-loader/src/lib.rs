@@ -6,41 +6,67 @@
 #![warn(missing_docs)]
 
 use anyhow::{Context, Result};
-use directories::ProjectDirs;
+use etcetera::{choose_app_strategy, AppStrategy, AppStrategyArgs};
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-/// Resolve the TCA data directory path without creating it.
-///
-/// Returns `$XDG_DATA_HOME/tca` on Linux/BSD, or the platform-equivalent on other OS.
-fn resolve_data_dir() -> Result<PathBuf> {
-    let project_dirs =
-        ProjectDirs::from("", "", "tca").context("Failed to determine project directories")?;
-    Ok(project_dirs.data_dir().to_path_buf())
+/// Configuration for TCA user preferences.
+#[derive(Default, Debug, Serialize, Deserialize)]
+pub struct TcaConfig {
+    /// The general default theme. Used if mode can't be detected or other options
+    /// aren't defined.
+    pub default_theme: Option<String>,
+    /// Default dark mode theme.
+    pub default_dark_theme: Option<String>,
+    /// Default light mode theme.
+    pub default_light_theme: Option<String>,
 }
 
-/// Get the TCA data directory path, creating it if it does not exist.
-///
-/// Returns `$XDG_DATA_HOME/tca` on Linux/BSD, or the platform-equivalent on other OS.
-pub fn get_data_dir() -> Result<PathBuf> {
-    let data_dir = resolve_data_dir()?;
-    if !data_dir.exists() {
-        fs::create_dir_all(&data_dir)
-            .with_context(|| format!("Failed to create data directory: {:?}", data_dir))?;
+impl TcaConfig {
+    /// Load the user's configuration preferences.
+    pub fn load() -> Self {
+        confy::load("tca", None).expect("Could not load TCA config.")
     }
-    Ok(data_dir)
+
+    /// Save the user's configurations preferences.
+    pub fn store(&self) {
+        confy::store("tca", None, self).expect("Could not save TCA config.");
+    }
+
+    /// Get the best default theme, based on user preference and current system
+    /// color mode.
+    pub fn mode_aware_theme(&self) -> Option<String> {
+        // Fallback order:
+        // Mode preference - if None or mode can't be determined then default
+        dark_light::detect().ok().and_then(|mode| match mode {
+            dark_light::Mode::Dark => self
+                .default_dark_theme
+                .clone()
+                .or(self.default_theme.clone()),
+            dark_light::Mode::Light => self
+                .default_light_theme
+                .clone()
+                .or(self.default_theme.clone()),
+            dark_light::Mode::Unspecified => self.default_theme.clone(),
+        })
+    }
 }
 
 /// Get the themes directory path, creating it if it does not exist.
 ///
-/// Returns `$XDG_DATA_HOME/tca/themes` (or platform equivalent).
+/// Returns `$XDG_DATA_HOME/tca-themes` (or platform equivalent).
 pub fn get_themes_dir() -> Result<PathBuf> {
-    let themes_dir = resolve_data_dir()?.join("themes");
-    if !themes_dir.exists() {
-        fs::create_dir_all(&themes_dir)
-            .with_context(|| format!("Failed to create themes directory: {:?}", themes_dir))?;
-    }
-    Ok(themes_dir)
+    let strategy = choose_app_strategy(AppStrategyArgs {
+        top_level_domain: "org".to_string(),
+        author: "TCA".to_string(),
+        app_name: "tca-themes".to_string(),
+    })
+    .unwrap();
+    let data_dir = strategy.data_dir();
+    fs::create_dir_all(&data_dir)?;
+
+    Ok(data_dir)
 }
 
 /// List all available theme files in the shared themes directory.
@@ -185,13 +211,6 @@ pub fn load_all_from_theme_dir() -> Result<Vec<tca_types::Theme>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_get_data_dir() {
-        let dir = get_data_dir().unwrap();
-        assert!(dir.exists());
-        assert!(dir.to_string_lossy().contains("tca"));
-    }
 
     #[test]
     fn test_get_themes_dir() {
