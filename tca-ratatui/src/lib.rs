@@ -127,8 +127,5 @@ pub use theme::{Ansi, Base16, ColorRamp, Meta, Palette, Semantic, TcaTheme, TcaT
 
 pub use theme::load_all_builtin;
 
-#[cfg(feature = "loader")]
-pub use theme::{load_all_from_dir, load_all_from_theme_dir};
-
 #[cfg(feature = "widgets")]
 pub use widgets::ColorPicker;

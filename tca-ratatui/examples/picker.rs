@@ -2,8 +2,7 @@ use ratatui::{
     crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
     DefaultTerminal, Frame,
 };
-use tca_ratatui::{load_all_builtin, load_all_from_dir, load_all_from_theme_dir};
-use tca_ratatui::{ColorPicker, TcaTheme};
+use tca_ratatui::{load_all_builtin, ColorPicker, TcaTheme};
 
 use std::{env, io};
 
@@ -63,6 +62,28 @@ impl App {
     }
 }
 
+fn load_from_dir(dir: &str) -> anyhow::Result<Vec<TcaTheme>> {
+    let paths: Vec<_> = std::fs::read_dir(dir)?
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().extension().and_then(|x| x.to_str()) == Some("toml"))
+        .map(|e| e.path())
+        .collect();
+    Ok(paths
+        .iter()
+        .filter_map(|p| p.to_str())
+        .map(|s| TcaTheme::new(Some(s)))
+        .collect())
+}
+
+fn load_from_theme_dir() -> anyhow::Result<Vec<TcaTheme>> {
+    let paths = tca_loader::list_themes()?;
+    Ok(paths
+        .iter()
+        .filter_map(|p| p.to_str())
+        .map(|s| TcaTheme::new(Some(s)))
+        .collect())
+}
+
 fn main() -> anyhow::Result<()> {
     let args: Vec<String> = env::args().collect();
 
@@ -89,8 +110,8 @@ fn main() -> anyhow::Result<()> {
         load_all_builtin()
     } else {
         match &themes_dir {
-            Some(dir) => load_all_from_dir(dir)?,
-            None => load_all_from_theme_dir()?,
+            Some(dir) => load_from_dir(dir)?,
+            None => load_from_theme_dir()?,
         }
     };
     themes.sort_by_key(|t| t.meta.name.to_string());

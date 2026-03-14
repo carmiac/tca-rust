@@ -15,9 +15,7 @@ exclude = [".gitignore", "codebook.toml"]
 
 [dependencies]
 anyhow = { workspace = true }
-confy = "2.0.0"
-dark-light = "2.0.0"
-directories = { workspace = true }
+terminal-colorsaurus = { workspace = true }
 etcetera = "0.11.0"
 serde = { workspace = true }
 tca-types = { workspace = true }

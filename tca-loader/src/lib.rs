@@ -23,33 +23,57 @@ pub struct TcaConfig {
     pub default_light_theme: Option<String>,
 }
 
+/// Returns the path to the TCA config file (`tca.toml` in the app config dir).
+fn config_file_path() -> Result<PathBuf> {
+    let strategy = choose_app_strategy(AppStrategyArgs {
+        top_level_domain: "org".to_string(),
+        author: "TCA".to_string(),
+        app_name: "tca".to_string(),
+    })?;
+    Ok(strategy.config_dir().join("tca.toml"))
+}
+
 impl TcaConfig {
     /// Load the user's configuration preferences.
+    ///
+    /// Returns [`Default`] if the config file doesn't exist or cannot be parsed.
     pub fn load() -> Self {
-        confy::load("tca", None).expect("Could not load TCA config.")
+        let Ok(path) = config_file_path() else {
+            return Self::default();
+        };
+        let Ok(content) = fs::read_to_string(path) else {
+            return Self::default();
+        };
+        toml::from_str(&content).unwrap_or_default()
     }
 
-    /// Save the user's configurations preferences.
+    /// Save the user's configuration preferences.
     pub fn store(&self) {
-        confy::store("tca", None, self).expect("Could not save TCA config.");
+        let path = config_file_path().expect("Could not determine TCA config path.");
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).expect("Could not create TCA config directory.");
+        }
+        let content = toml::to_string(self).expect("Could not serialize TCA config.");
+        fs::write(&path, content).expect("Could not save TCA config.");
     }
 
-    /// Get the best default theme, based on user preference and current system
+    /// Get the best default theme, based on user preference and current terminal
     /// color mode.
     pub fn mode_aware_theme(&self) -> Option<String> {
         // Fallback order:
         // Mode preference - if None or mode can't be determined then default
-        dark_light::detect().ok().and_then(|mode| match mode {
-            dark_light::Mode::Dark => self
+        use terminal_colorsaurus::{theme_mode, QueryOptions, ThemeMode};
+        match theme_mode(QueryOptions::default()).ok() {
+            Some(ThemeMode::Dark) => self
                 .default_dark_theme
                 .clone()
                 .or(self.default_theme.clone()),
-            dark_light::Mode::Light => self
+            Some(ThemeMode::Light) => self
                 .default_light_theme
                 .clone()
                 .or(self.default_theme.clone()),
-            dark_light::Mode::Unspecified => self.default_theme.clone(),
-        })
+            None => self.default_theme.clone(),
+        }
     }
 }
 

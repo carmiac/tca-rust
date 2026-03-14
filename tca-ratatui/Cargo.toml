@@ -21,7 +21,7 @@ toml = { workspace = true }
 ratatui = { workspace = true }
 anyhow = { workspace = true }
 strum = { version = "0.28.0", features = ["derive"] }
-dark-light = "2.0.0"
+terminal-colorsaurus = { workspace = true }
 
 [dev-dependencies]
 crossterm = { workspace = true }

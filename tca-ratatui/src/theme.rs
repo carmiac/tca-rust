@@ -314,8 +314,9 @@ impl TcaTheme {
             })
             // 4. Hardcoded default — always succeeds
             .unwrap_or_else(|| {
-                let builtin = match dark_light::detect().unwrap_or(dark_light::Mode::Dark) {
-                    dark_light::Mode::Light => BuiltinTheme::default_light(),
+                use terminal_colorsaurus::{theme_mode, QueryOptions, ThemeMode};
+                let builtin = match theme_mode(QueryOptions::default()).ok() {
+                    Some(ThemeMode::Light) => BuiltinTheme::default_light(),
                     _ => BuiltinTheme::default_dark(),
                 };
                 TcaTheme::try_from(builtin.theme()).expect("hardcoded default must be valid")
@@ -333,10 +334,7 @@ impl TryFrom<&str> for TcaTheme {
     }
 }
 
-/// Resolves a raw [`tca_types::Theme`] into a [`TcaTheme`] with Ratatui colors.
-///
-/// All color references that cannot be resolved silently fall back to defaults.
-/// Except for Ansi colors, as they are a hard requirement.
+#[doc(hidden)]
 impl TryFrom<tca_types::Theme> for TcaTheme {
     type Error = anyhow::Error;
     fn try_from(raw: tca_types::Theme) -> Result<TcaTheme, Self::Error> {
@@ -401,30 +399,6 @@ pub fn load_all_builtin() -> Vec<TcaTheme> {
         .map(TcaTheme::try_from)
         .filter_map(Result::ok)
         .collect()
-}
-
-#[cfg(feature = "loader")]
-/// Loads and resolves all themes in a given directory.
-///
-/// Themes that can't be parsed are skipped.
-pub fn load_all_from_dir(dir: &str) -> anyhow::Result<Vec<TcaTheme>> {
-    let raw = tca_loader::load_all_from_dir(dir)?;
-    let themes = raw
-        .into_iter()
-        .map(TcaTheme::try_from)
-        .filter_map(Result::ok)
-        .collect();
-    Ok(themes)
-}
-
-#[cfg(feature = "loader")]
-/// Loads and resolves all themes in the user theme directory.
-///
-/// Themes that can't be parsed are skipped.
-pub fn load_all_from_theme_dir() -> anyhow::Result<Vec<TcaTheme>> {
-    let dir = tca_loader::get_themes_dir()?;
-    let dir_str = dir.to_str().context("Data directory is not valid.")?;
-    load_all_from_dir(dir_str)
 }
 
 /// Builder for constructing a [`TcaTheme`] programmatically.
