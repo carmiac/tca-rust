@@ -6,41 +6,91 @@
 #![warn(missing_docs)]
 
 use anyhow::{Context, Result};
-use directories::ProjectDirs;
+use etcetera::{choose_app_strategy, AppStrategy, AppStrategyArgs};
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-/// Resolve the TCA data directory path without creating it.
-///
-/// Returns `$XDG_DATA_HOME/tca` on Linux/BSD, or the platform-equivalent on other OS.
-fn resolve_data_dir() -> Result<PathBuf> {
-    let project_dirs =
-        ProjectDirs::from("", "", "tca").context("Failed to determine project directories")?;
-    Ok(project_dirs.data_dir().to_path_buf())
+/// Configuration for TCA user preferences.
+#[derive(Default, Debug, Serialize, Deserialize)]
+pub struct TcaConfig {
+    /// The general default theme. Used if mode can't be detected or other options
+    /// aren't defined.
+    pub default_theme: Option<String>,
+    /// Default dark mode theme.
+    pub default_dark_theme: Option<String>,
+    /// Default light mode theme.
+    pub default_light_theme: Option<String>,
 }
 
-/// Get the TCA data directory path, creating it if it does not exist.
-///
-/// Returns `$XDG_DATA_HOME/tca` on Linux/BSD, or the platform-equivalent on other OS.
-pub fn get_data_dir() -> Result<PathBuf> {
-    let data_dir = resolve_data_dir()?;
-    if !data_dir.exists() {
-        fs::create_dir_all(&data_dir)
-            .with_context(|| format!("Failed to create data directory: {:?}", data_dir))?;
+/// Returns the path to the TCA config file (`tca.toml` in the app config dir).
+fn config_file_path() -> Result<PathBuf> {
+    let strategy = choose_app_strategy(AppStrategyArgs {
+        top_level_domain: "org".to_string(),
+        author: "TCA".to_string(),
+        app_name: "tca".to_string(),
+    })?;
+    Ok(strategy.config_dir().join("tca.toml"))
+}
+
+impl TcaConfig {
+    /// Load the user's configuration preferences.
+    ///
+    /// Returns [`Default`] if the config file doesn't exist or cannot be parsed.
+    pub fn load() -> Self {
+        let Ok(path) = config_file_path() else {
+            return Self::default();
+        };
+        let Ok(content) = fs::read_to_string(path) else {
+            return Self::default();
+        };
+        toml::from_str(&content).unwrap_or_default()
     }
-    Ok(data_dir)
+
+    /// Save the user's configuration preferences.
+    pub fn store(&self) {
+        let path = config_file_path().expect("Could not determine TCA config path.");
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).expect("Could not create TCA config directory.");
+        }
+        let content = toml::to_string(self).expect("Could not serialize TCA config.");
+        fs::write(&path, content).expect("Could not save TCA config.");
+    }
+
+    /// Get the best default theme, based on user preference and current terminal
+    /// color mode.
+    pub fn mode_aware_theme(&self) -> Option<String> {
+        // Fallback order:
+        // Mode preference - if None or mode can't be determined then default
+        use terminal_colorsaurus::{theme_mode, QueryOptions, ThemeMode};
+        match theme_mode(QueryOptions::default()).ok() {
+            Some(ThemeMode::Dark) => self
+                .default_dark_theme
+                .clone()
+                .or(self.default_theme.clone()),
+            Some(ThemeMode::Light) => self
+                .default_light_theme
+                .clone()
+                .or(self.default_theme.clone()),
+            None => self.default_theme.clone(),
+        }
+    }
 }
 
 /// Get the themes directory path, creating it if it does not exist.
 ///
-/// Returns `$XDG_DATA_HOME/tca/themes` (or platform equivalent).
+/// Returns `$XDG_DATA_HOME/tca-themes` (or platform equivalent).
 pub fn get_themes_dir() -> Result<PathBuf> {
-    let themes_dir = resolve_data_dir()?.join("themes");
-    if !themes_dir.exists() {
-        fs::create_dir_all(&themes_dir)
-            .with_context(|| format!("Failed to create themes directory: {:?}", themes_dir))?;
-    }
-    Ok(themes_dir)
+    let strategy = choose_app_strategy(AppStrategyArgs {
+        top_level_domain: "org".to_string(),
+        author: "TCA".to_string(),
+        app_name: "tca-themes".to_string(),
+    })
+    .unwrap();
+    let data_dir = strategy.data_dir();
+    fs::create_dir_all(&data_dir)?;
+
+    Ok(data_dir)
 }
 
 /// List all available theme files in the shared themes directory.
@@ -187,17 +237,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_get_data_dir() {
-        let dir = get_data_dir().unwrap();
-        assert!(dir.exists());
-        assert!(dir.to_string_lossy().contains("tca"));
-    }
-
-    #[test]
     fn test_get_themes_dir() {
         let dir = get_themes_dir().unwrap();
         assert!(dir.exists());
-        assert!(dir.ends_with("themes"));
+        assert!(dir.ends_with("tca-themes"));
     }
 
     #[test]

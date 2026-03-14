@@ -1,0 +1,77 @@
+[theme]
+name = "Mono"
+slug = "mono"
+author = "TCA Project"
+version = "1.0.0"
+description = "A basic monochromatic theme."
+dark = true
+
+
+[ansi]
+black = "#0a0a0a"
+red = "#606060"
+green = "#d0d0d0"
+yellow = "#d0d0d0"
+blue = "#606060"
+magenta = "#606060"
+cyan = "#d0d0d0"
+white = "#f5f5f5"
+bright_black = "#2a2a2a"
+bright_red = "#606060"
+bright_green = "#d0d0d0"
+bright_yellow = "#f5f5f5"
+bright_blue = "#d0d0d0"
+bright_magenta = "#606060"
+bright_cyan = "#f5f5f5"
+bright_white = "#f5f5f5"
+
+# Palette: 0=#0a0a0a  1=#2a2a2a  2=#606060  3=#d0d0d0  4=#f5f5f5
+[palette]
+neutral = ["#0a0a0a", "#2a2a2a", "#606060", "#d0d0d0", "#f5f5f5"]
+
+[base16]
+base00 = "palette.neutral.0"
+base01 = "palette.neutral.1"
+base02 = "palette.neutral.1"
+base03 = "palette.neutral.2"
+base04 = "palette.neutral.2"
+base05 = "palette.neutral.3"
+base06 = "palette.neutral.3"
+base07 = "palette.neutral.4"
+base08 = "palette.neutral.2"
+base09 = "palette.neutral.2"
+base0A = "palette.neutral.3"
+base0B = "palette.neutral.3"
+base0C = "palette.neutral.3"
+base0D = "palette.neutral.2"
+base0E = "palette.neutral.2"
+base0F = "palette.neutral.2"
+
+[semantic]
+error = "palette.neutral.2"
+warning = "palette.neutral.2"
+success = "palette.neutral.3"
+info = "palette.neutral.3"
+highlight = "palette.neutral.4"
+link = "palette.neutral.3"
+
+[ui.bg]
+primary = "palette.neutral.0"
+secondary = "palette.neutral.1"
+
+[ui.fg]
+primary = "palette.neutral.4"
+secondary = "palette.neutral.3"
+muted = "palette.neutral.2"
+
+[ui.border]
+primary = "palette.neutral.2"
+muted = "palette.neutral.1"
+
+[ui.cursor]
+primary = "palette.neutral.3"
+muted = "palette.neutral.2"
+
+[ui.selection]
+bg = "palette.neutral.1"
+fg = "palette.neutral.4"

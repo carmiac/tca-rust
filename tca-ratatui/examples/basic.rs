@@ -1,21 +1,17 @@
 use std::env;
-use std::path::PathBuf;
 
 use ratatui::style::Style;
 use tca_ratatui::TcaTheme;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let theme_path: Option<PathBuf> = env::args_os().nth(1).map(PathBuf::from);
+    let arg = env::args().nth(1);
+    let theme_path: Option<&str> = arg.as_deref();
 
-    let theme = match theme_path {
-        Some(theme_path) => {
-            println!("Loading TCA theme from: {:?}", theme_path);
-            TcaTheme::try_from(&theme_path)?
-        }
-        None => {
-            return Err("Usage: basic path/to/theme.toml".into());
-        }
-    };
+    if theme_path.is_none() {
+        return Err("Usage: basic path/to/theme.toml".into());
+    }
+    println!("Loading TCA theme from: {:?}", theme_path);
+    let theme = TcaTheme::new(theme_path);
 
     println!("\nTheme: {}", theme.meta.name);
     if let Some(author) = theme.meta.author {

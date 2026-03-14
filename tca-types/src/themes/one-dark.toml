@@ -1,0 +1,94 @@
+[theme]
+name = "One Dark"
+slug = "one-dark"
+author = "Atom / TCA Project"
+version = "1.0.0"
+description = "Dark theme inspired by Atom's One Dark UI. Clean syntax colors on a comfortable dark background."
+dark = true
+
+[ansi]
+black = "#282c34"
+red = "#e06c75"
+green = "#98c379"
+yellow = "#e5c07b"
+blue = "#61afef"
+magenta = "#c678dd"
+cyan = "#56b6c2"
+white = "#abb2bf"
+
+bright_black = "#5c6370"
+bright_red = "#e06c75"
+bright_green = "#98c379"
+bright_yellow = "#e5c07b"
+bright_blue = "#61afef"
+bright_magenta = "#c678dd"
+bright_cyan = "#56b6c2"
+bright_white = "#ffffff"
+
+# Palette: darkest→lightest
+# neutral: 0=#21252b  1=#282c34  2=#2c313a  3=#3e4451  4=#4b5263  5=#5c6370  6=#abb2bf  7=#c8ccd4
+[palette]
+neutral = [
+  "#21252b",
+  "#282c34",
+  "#2c313a",
+  "#3e4451",
+  "#4b5263",
+  "#5c6370",
+  "#abb2bf",
+  "#c8ccd4",
+]
+red = ["#6b1f25", "#be5046", "#e06c75"]
+green = ["#2d4a24", "#6aaf50", "#98c379"]
+yellow = ["#5c4510", "#caa234", "#e5c07b"]
+blue = ["#1a3860", "#3d8ec9", "#61afef"]
+purple = ["#3d1f5c", "#9e4ec7", "#c678dd"]
+cyan = ["#1a3d42", "#3a8c96", "#56b6c2"]
+orange = ["#5c2e00", "#c47214", "#d19a66"]
+
+[base16]
+base00 = "palette.neutral.0"
+base01 = "palette.neutral.1"
+base02 = "palette.neutral.2"
+base03 = "palette.neutral.3"
+base04 = "palette.neutral.5"
+base05 = "palette.neutral.6"
+base06 = "palette.neutral.7"
+base07 = "#ffffff"
+base08 = "palette.red.2"
+base09 = "palette.orange.2"
+base0A = "palette.yellow.2"
+base0B = "palette.green.2"
+base0C = "palette.cyan.2"
+base0D = "palette.blue.2"
+base0E = "palette.purple.2"
+base0F = "palette.red.1"
+
+[semantic]
+error = "palette.red.2"
+warning = "palette.orange.2"
+info = "palette.blue.2"
+success = "palette.green.2"
+highlight = "palette.yellow.2"
+link = "palette.blue.2"
+
+[ui.bg]
+primary = "palette.neutral.1"
+secondary = "palette.neutral.2"
+
+[ui.fg]
+primary = "palette.neutral.6"
+secondary = "palette.neutral.5"
+muted = "ansi.bright_black"
+
+[ui.border]
+primary = "palette.neutral.4"
+muted = "palette.neutral.3"
+
+[ui.cursor]
+primary = "palette.blue.2"
+muted = "palette.neutral.5"
+
+[ui.selection]
+bg = "palette.neutral.3"
+fg = "palette.neutral.6"

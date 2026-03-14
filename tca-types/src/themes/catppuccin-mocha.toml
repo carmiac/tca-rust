@@ -1,0 +1,99 @@
+[theme]
+name = "Catppuccin Mocha"
+slug = "catppuccin-mocha"
+author = "Catppuccin Org / TCA Project"
+version = "1.0.0"
+description = "Soothing pastel dark theme. Based on Catppuccin Mocha by the Catppuccin Org."
+dark = true
+
+[ansi]
+black = "#45475a"
+red = "#f38ba8"
+green = "#a6e3a1"
+yellow = "#f9e2af"
+blue = "#89b4fa"
+magenta = "#cba4f7"
+cyan = "#94e2d5"
+white = "#bac2de"
+
+bright_black = "#585b70"
+bright_red = "#f38ba8"
+bright_green = "#a6e3a1"
+bright_yellow = "#f9e2af"
+bright_blue = "#89b4fa"
+bright_magenta = "#cba4f7"
+bright_cyan = "#94e2d5"
+bright_white = "#a6adc8"
+
+# Palette: crust→text (Catppuccin Mocha named tones)
+# base:    0=#1e1e2e  1=#181825  2=#11111b (crust)
+# surface: 0=#313244  1=#45475a  2=#585b70
+# overlay: 0=#6c7086  1=#7f849c  2=#9399b2
+# text:    0=#bac2de  1=#cdd6f4  2=#eff1f5
+[palette]
+neutral = [
+  "#11111b",
+  "#1e1e2e",
+  "#313244",
+  "#45475a",
+  "#585b70",
+  "#6c7086",
+  "#bac2de",
+  "#cdd6f4",
+]
+red = ["#7d1c2e", "#e6728a", "#f38ba8"]
+green = ["#2a4734", "#89d8a0", "#a6e3a1"]
+yellow = ["#5c4a1e", "#e5c890", "#f9e2af"]
+blue = ["#1e3a5f", "#74aaef", "#89b4fa"]
+mauve = ["#4d3066", "#b890f5", "#cba4f7"]
+teal = ["#1b4a44", "#7fcfc3", "#94e2d5"]
+peach = ["#5c2a0e", "#e08566", "#fab387"]
+pink = ["#4d1f3c", "#ea7eb4", "#f5c2e7"]
+sky = ["#1a445f", "#7fd4f7", "#89dceb"]
+
+[base16]
+base00 = "palette.neutral.1"
+base01 = "palette.neutral.0"
+base02 = "palette.neutral.2"
+base03 = "palette.neutral.3"
+base04 = "palette.neutral.5"
+base05 = "palette.neutral.7"
+base06 = "palette.neutral.7"
+base07 = "#eff1f5"
+base08 = "palette.red.2"
+base09 = "palette.peach.2"
+base0A = "palette.yellow.2"
+base0B = "palette.green.2"
+base0C = "palette.teal.2"
+base0D = "palette.blue.2"
+base0E = "palette.mauve.2"
+base0F = "palette.pink.2"
+
+[semantic]
+error = "palette.red.2"
+warning = "palette.peach.2"
+info = "palette.sky.2"
+success = "palette.green.2"
+highlight = "palette.yellow.2"
+link = "palette.blue.2"
+
+[ui.bg]
+primary = "palette.neutral.1"
+secondary = "palette.neutral.0"
+
+[ui.fg]
+primary = "palette.neutral.7"
+secondary = "palette.neutral.6"
+muted = "palette.neutral.5"
+
+[ui.border]
+primary = "palette.mauve.2"
+muted = "palette.neutral.3"
+
+[ui.cursor]
+primary = "palette.mauve.2"
+muted = "palette.neutral.4"
+
+[ui.selection]
+bg = "palette.neutral.3"
+fg = "palette.neutral.7"

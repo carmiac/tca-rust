@@ -20,6 +20,8 @@ serde = { workspace = true }
 toml = { workspace = true }
 ratatui = { workspace = true }
 anyhow = { workspace = true }
+strum = { version = "0.28.0", features = ["derive"] }
+terminal-colorsaurus = { workspace = true }
 
 [dev-dependencies]
 crossterm = { workspace = true }
