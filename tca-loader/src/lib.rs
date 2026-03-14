@@ -216,7 +216,7 @@ mod tests {
     fn test_get_themes_dir() {
         let dir = get_themes_dir().unwrap();
         assert!(dir.exists());
-        assert!(dir.ends_with("themes"));
+        assert!(dir.ends_with("tca-themes"));
     }
 
     #[test]
