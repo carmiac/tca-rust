@@ -119,29 +119,29 @@ pub fn list_themes() -> Result<Vec<PathBuf>> {
     Ok(themes)
 }
 
-/// Find a theme by name (with or without `.toml` extension).
+/// Find a theme by name.
 ///
-/// Searches for `<name>.toml` in the themes directory.
+/// Converts name to kebab-case and searches for `<name>.toml` in the
+/// themes directory.
 /// Returns the full path if found.
 pub fn find_theme(name: &str) -> Result<PathBuf> {
     let themes_dir = get_themes_dir()?;
 
+    let name = convert_case::ccase!(kebab, name);
     // If no extension, also try with .toml appended
     let candidate = if !name.ends_with(".toml") {
         themes_dir.join(format!("{}.toml", name))
     } else {
-        themes_dir.join(name)
+        themes_dir.join(&name)
     };
-
     if candidate.exists() && candidate.is_file() {
         return Ok(candidate);
     }
 
     Err(anyhow::anyhow!(
-        "Theme '{}' not found in {:?}. Available themes: {:?}",
+        "Theme '{}' not found in {:?}.",
         name,
         themes_dir,
-        list_theme_names()?
     ))
 }
 
@@ -179,12 +179,10 @@ pub fn load_theme_file(path_or_name: &str) -> Result<String> {
     Err(anyhow::anyhow!(
         "Theme '{}' not found. Searched:\n\
          1. Exact path: {:?}\n\
-         2. Shared themes: {:?}\n\
-         Available shared themes: {:?}",
+         2. Shared themes: {:?}\n",
         path_or_name,
         path,
         get_themes_dir()?,
-        list_theme_names()?
     ))
 }
 

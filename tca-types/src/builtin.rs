@@ -6,26 +6,19 @@ use strum::{EnumIter, EnumString, IntoStaticStr};
 /// Enum of built in themes.
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, EnumIter, EnumString, IntoStaticStr)]
-#[strum(serialize_all = "kebab-case")]
+#[strum(serialize_all = "kebab-case", ascii_case_insensitive)]
 pub enum BuiltinTheme {
-    #[strum(serialize = "catppuccin-mocha", serialize = "catppuccin mocha")]
     CatppuccinMocha,
     Cyberpunk,
     #[default]
     Dracula,
-    #[strum(serialize = "everforest-dark", serialize = "everforest dark")]
     EverforestDark,
-    #[strum(serialize = "gruvbox-dark", serialize = "gruvbox dark")]
     GruvboxDark,
     Mono,
     Nord,
-    #[strum(serialize = "one-dark", serialize = "one dark")]
     OneDark,
-    #[strum(serialize = "rose-pine", serialize = "rose pine")]
     RosePine,
-    #[strum(serialize = "solarized light", serialize = "solarized-light")]
     SolarizedLight,
-    #[strum(serialize = "tokyo-night", serialize = "tokyo night")]
     TokyoNight,
 }
 

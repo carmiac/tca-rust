@@ -8,9 +8,8 @@ Defines the `Theme` struct that TOML theme files deserialize into, plus color re
 
 ## Installation
 
-```toml
-[dependencies]
-tca-types = "0.1"
+```sh
+cargo add tca-types
 ```
 
 ## Usage

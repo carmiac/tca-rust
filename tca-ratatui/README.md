@@ -4,9 +4,8 @@ Ratatui integration for [TCA](https://github.com/carmiac/tca-rust) themes. One c
 
 ## Quick start
 
-```toml
-[dependencies]
-tca-ratatui = "0.2"
+```sh
+cargo add tca-ratatui
 ```
 
 ```rust
@@ -17,6 +16,7 @@ use ratatui::style::Style;
 let theme = TcaTheme::new(Some("tokyo-night"));
 let theme = TcaTheme::new(Some("path/to/theme.toml"));
 let theme = TcaTheme::new(None); // auto-detects dark/light
+let theme = TcaTheme::default();
 
 // Use the colors
 let normal = Style::default().fg(theme.ui.fg_primary).bg(theme.ui.bg_primary);
@@ -99,7 +99,7 @@ let theme = TcaTheme::try_from(toml_str).expect("invalid theme");
 
 ```toml
 # Widgets
-tca-ratatui = { version = "0.2", features = ["widgets"] }
+tca-ratatui = { version = "0.3", features = ["widgets"] }
 ```
 
 ## Examples
