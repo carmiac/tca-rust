@@ -7,7 +7,7 @@ Terminal Colors Architecture (TCA) for Rust: consistent, user-configurable themi
 Add one line to your app and get beautiful theming with zero configuration:
 
 ```rust
-let theme = TcaTheme::new(None);
+let theme = TcaTheme::default();
 ```
 
 Your app immediately works with 11 built-in themes and any theme the user installs. You don't have to ship themes or write config parsers - TCA handles it.

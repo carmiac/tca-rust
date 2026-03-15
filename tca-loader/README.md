@@ -8,9 +8,8 @@ Provides filesystem operations for discovering and loading TCA theme files, and 
 
 ## Installation
 
-```toml
-[dependencies]
-tca-loader = "0.1"
+```sh
+cargo add tca-loader
 ```
 
 ## Theme directory

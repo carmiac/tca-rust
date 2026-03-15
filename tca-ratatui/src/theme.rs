@@ -287,7 +287,14 @@ pub struct TcaTheme {
 
 impl TcaTheme {
     /// Creates a new theme, trying to match the passed name to a known
-    /// theme name or path and a reasonable default otherwise.
+    /// theme name or path and a reasonable default otherwise. The name is internally
+    /// converted, so e.g. any of the following would get the same theme:
+    /// NordDark
+    /// Nord Dark
+    /// Nord-Dark
+    /// nord-dark
+    /// nordDark
+    /// etc...
     ///
     /// The search fallback order is:
     /// 1. Local theme files.
@@ -301,8 +308,12 @@ impl TcaTheme {
             .and_then(|s| TcaTheme::try_from(s.as_str()).ok())
             // 2. Try the named built-in theme
             .or_else(|| {
-                name.and_then(|n| n.parse::<BuiltinTheme>().ok())
-                    .and_then(|b| TcaTheme::try_from(b.theme()).ok())
+                name.and_then(|n| {
+                    let slug = convert_case::ccase!(kebab, n);
+                    slug.parse::<BuiltinTheme>()
+                        .ok()
+                        .and_then(|b| TcaTheme::try_from(b.theme()).ok())
+                })
             })
             // 3. Try the global config default
             //    (e.g. ~/.config/tca/config.toml has `default_theme = "nord"`)
@@ -321,6 +332,13 @@ impl TcaTheme {
                 };
                 TcaTheme::try_from(builtin.theme()).expect("hardcoded default must be valid")
             })
+    }
+}
+
+#[cfg(feature = "loader")]
+impl Default for TcaTheme {
+    fn default() -> Self {
+        TcaTheme::new(None)
     }
 }
 
