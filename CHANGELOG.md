@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-- Better theme name resolution. e.g. "Nord Dark", "Nord-Dark", "nord-dark", "nord dark", "nordDark" all resolve to the same theme.
+- Flexible theme name resolution. e.g. "Nord Dark", "Nord-Dark", "nord-dark", "nord dark", "nordDark" all resolve to the same theme.
 - TcaTheme::default() is the same as TcaTheme::new(None)
 
 ## [0.2.0]

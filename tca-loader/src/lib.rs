@@ -166,7 +166,6 @@ pub fn load_theme_file(path_or_name: &str) -> Result<String> {
 
     // 1. Try exact path (handles absolute paths and relative paths from cwd)
     if path.exists() && path.is_file() {
-        println!("ltf: found exact path");
         return fs::read_to_string(path)
             .with_context(|| format!("Failed to read theme file: {:?}", path));
     }

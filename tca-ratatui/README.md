@@ -99,7 +99,7 @@ let theme = TcaTheme::try_from(toml_str).expect("invalid theme");
 
 ```toml
 # Widgets
-tca-ratatui = { version = "0.1", features = ["widgets"] }
+tca-ratatui = { version = "0.3", features = ["widgets"] }
 ```
 
 ## Examples
