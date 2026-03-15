@@ -94,8 +94,8 @@ let theme = TcaTheme::try_from(toml_str).expect("invalid theme");
 
 | Feature   | Default | Description                               |
 | --------- | ------- | ----------------------------------------- |
-| `loader`  | ✓       | File I/O, `TcaTheme::new()`, TOML parsing |
-| `widgets` | —       | `ColorPicker` widget                      |
+| `loader`  | X       | File I/O, `TcaTheme::new()`, TOML parsing |
+| `widgets` | -       | `ColorPicker` widget                      |
 
 ```toml
 # Widgets
