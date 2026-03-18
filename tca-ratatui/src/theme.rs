@@ -309,7 +309,7 @@ impl TcaTheme {
             // 2. Try the named built-in theme
             .or_else(|| {
                 name.and_then(|n| {
-                    let slug = convert_case::ccase!(kebab, n);
+                    let slug = heck::AsKebabCase(n).to_string();
                     slug.parse::<BuiltinTheme>()
                         .ok()
                         .and_then(|b| TcaTheme::try_from(b.theme()).ok())

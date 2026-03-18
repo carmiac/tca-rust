@@ -127,7 +127,7 @@ pub fn list_themes() -> Result<Vec<PathBuf>> {
 pub fn find_theme(name: &str) -> Result<PathBuf> {
     let themes_dir = get_themes_dir()?;
 
-    let name = convert_case::ccase!(kebab, name);
+    let name = heck::AsKebabCase(name).to_string();
     // If no extension, also try with .toml appended
     let candidate = if !name.ends_with(".toml") {
         themes_dir.join(format!("{}.toml", name))
