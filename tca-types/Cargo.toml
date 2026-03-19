@@ -16,7 +16,7 @@ exclude = [".gitignore", "codebook.toml"]
 [dependencies]
 anyhow = { workspace = true, optional = true }
 serde = { workspace = true }
-strum = { version = "0.28.0", features = ["derive"] }
+strum = { workspace = true }
 thiserror = { workspace = true }
 toml = { workspace = true }
 

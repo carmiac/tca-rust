@@ -21,9 +21,12 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 anyhow = "1.0"
 colored = "2.1"
+etcetera = "0.11.0"
+heck = "0.5"
 jsonschema = "0.42"
+strum = { version = "0.28.0", features = ["derive"] }
+terminal-colorsaurus = "1"
 toml = "0.8"
 clap = { version = "4.5", features = ["derive"] }
 ratatui = "0.30"
 crossterm = "0.29"
-terminal-colorsaurus = "1"
