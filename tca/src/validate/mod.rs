@@ -265,6 +265,27 @@ fn validate_contrast(theme: &Theme) -> Result<ValidationResult> {
         )?;
     }
 
+    // fg.secondary / bg.* — recommended >4.5, warn <3.5, error <3.0
+    let fg_secondary = resolve(&theme.ui.fg.secondary);
+    if !fg_secondary.is_empty() {
+        check_contrast(
+            &mut result,
+            "ui.fg.secondary / bg.primary",
+            &fg_secondary,
+            &bg_primary,
+            3.5,
+            3.0,
+        )?;
+        check_contrast(
+            &mut result,
+            "ui.fg.secondary / bg.secondary",
+            &fg_secondary,
+            &bg_secondary,
+            3.5,
+            3.0,
+        )?;
+    }
+
     // fg.muted / bg.* — recommended >3.0, warn <2.5, error <2.0
     let fg_muted = resolve(&theme.ui.fg.muted);
     if !fg_muted.is_empty() {
@@ -331,7 +352,7 @@ fn validate_contrast(theme: &Theme) -> Result<ValidationResult> {
         )?;
     }
 
-    // semantic.* / bg.primary — recommended >4.5, warn <2.5, error <2.0
+    // semantic.* / bg.primary — recommended >4.5, warn <3.5, error <3.0
     for (name, color_ref) in [
         ("error", &theme.semantic.error),
         ("warning", &theme.semantic.warning),
@@ -347,8 +368,8 @@ fn validate_contrast(theme: &Theme) -> Result<ValidationResult> {
                 &format!("semantic.{} / bg.primary", name),
                 &color,
                 &bg_primary,
-                2.5,
-                2.0,
+                3.5,
+                3.0,
             )?;
         }
     }

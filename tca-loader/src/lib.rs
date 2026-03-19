@@ -12,6 +12,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 /// Configuration for TCA user preferences.
+///
+/// Stored at `$XDG_CONFIG_HOME/tca/tca.toml` under a `[tca]` section.
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct TcaConfig {
     /// The general default theme. Used if mode can't be detected or other options
@@ -21,6 +23,13 @@ pub struct TcaConfig {
     pub default_dark_theme: Option<String>,
     /// Default light mode theme.
     pub default_light_theme: Option<String>,
+}
+
+/// Outer TOML wrapper that produces the `[tca]` section header required by the spec.
+#[derive(Default, Debug, Serialize, Deserialize)]
+struct TcaConfigFile {
+    #[serde(default)]
+    tca: TcaConfig,
 }
 
 /// Returns the path to the TCA config file (`tca.toml` in the app config dir).
@@ -44,7 +53,9 @@ impl TcaConfig {
         let Ok(content) = fs::read_to_string(path) else {
             return Self::default();
         };
-        toml::from_str(&content).unwrap_or_default()
+        toml::from_str::<TcaConfigFile>(&content)
+            .unwrap_or_default()
+            .tca
     }
 
     /// Save the user's configuration preferences.
@@ -53,7 +64,14 @@ impl TcaConfig {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).expect("Could not create TCA config directory.");
         }
-        let content = toml::to_string(self).expect("Could not serialize TCA config.");
+        let file = TcaConfigFile {
+            tca: TcaConfig {
+                default_theme: self.default_theme.clone(),
+                default_dark_theme: self.default_dark_theme.clone(),
+                default_light_theme: self.default_light_theme.clone(),
+            },
+        };
+        let content = toml::to_string(&file).expect("Could not serialize TCA config.");
         fs::write(&path, content).expect("Could not save TCA config.");
     }
 
@@ -79,18 +97,18 @@ impl TcaConfig {
 
 /// Get the themes directory path, creating it if it does not exist.
 ///
-/// Returns `$XDG_DATA_HOME/tca-themes` (or platform equivalent).
+/// Returns `$XDG_DATA_HOME/tca/themes/` (or platform equivalent).
 pub fn get_themes_dir() -> Result<PathBuf> {
     let strategy = choose_app_strategy(AppStrategyArgs {
         top_level_domain: "org".to_string(),
         author: "TCA".to_string(),
-        app_name: "tca-themes".to_string(),
+        app_name: "tca".to_string(),
     })
     .unwrap();
-    let data_dir = strategy.data_dir();
-    fs::create_dir_all(&data_dir)?;
+    let themes_dir = strategy.data_dir().join("themes");
+    fs::create_dir_all(&themes_dir)?;
 
-    Ok(data_dir)
+    Ok(themes_dir)
 }
 
 /// List all available theme files in the shared themes directory.
@@ -238,7 +256,7 @@ mod tests {
     fn test_get_themes_dir() {
         let dir = get_themes_dir().unwrap();
         assert!(dir.exists());
-        assert!(dir.ends_with("tca-themes"));
+        assert!(dir.ends_with("tca/themes"));
     }
 
     #[test]
