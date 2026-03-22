@@ -14,10 +14,15 @@ readme = "README.md"
 exclude = [".gitignore", "codebook.toml"]
 
 [dependencies]
-anyhow = { workspace = true, optional = true }
 serde = { workspace = true }
 strum = { workspace = true }
 thiserror = { workspace = true }
 toml = { workspace = true }
+heck = { workspace = true }
+anyhow = { workspace = true }
+etcetera = { workspace = true, optional = true }
+terminal-colorsaurus = { workspace = true }
 
 [features]
+default = ["fs"]
+fs = ["dep:etcetera"]

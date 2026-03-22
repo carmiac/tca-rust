@@ -2,6 +2,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 
 mod export;
+mod list;
 mod validate;
 
 #[derive(Parser)]
@@ -33,7 +34,7 @@ enum Commands {
         #[arg(short, long)]
         output: Option<String>,
     },
-    /// List available themes from user local shared directory
+    /// List all available themes.
     List,
 }
 
@@ -51,31 +52,9 @@ fn main() -> Result<()> {
         } => {
             export::run(&theme, &format, output.as_deref())?;
         }
-        Commands::List => match tca_loader::get_themes_dir() {
-            Ok(dir) => {
-                println!("Themes directory: {}", dir.display());
-                println!();
-                match tca_loader::list_theme_names() {
-                    Ok(themes) => {
-                        if themes.is_empty() {
-                            println!("No themes found.");
-                            println!("Add .toml theme files to: {}", dir.display());
-                        } else {
-                            println!("Available themes ({}):", themes.len());
-                            for theme in themes {
-                                println!("  - {}", theme);
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        eprintln!("Error listing themes: {}", e);
-                    }
-                }
-            }
-            Err(e) => {
-                eprintln!("Error getting themes directory: {}", e);
-            }
-        },
+        Commands::List => {
+            list::run()?;
+        }
     }
 
     Ok(())

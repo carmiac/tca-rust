@@ -40,10 +40,10 @@ Browse available themes at [tca-themes](https://github.com/carmiac/tca-themes).
 
 `TcaTheme::new(Some("name"))` tries each step in order, falling back gracefully:
 
-1. **User theme files** - searches `~/.local/share/tca-themes/<name>.toml`, or accepts an exact file path
-2. **Built-in themes** - catppuccin-mocha, cyberpunk, dracula, everforest-dark, gruvbox-dark, mono, nord, one-dark, rose-pine, solarized-light, tokyo-night
-3. **User preference** - reads `~/.config/tca/tca.toml` for a configured default
-4. **Auto-detect** - picks a dark or light built-in based on the terminal's background color
+1. User theme files - searches `~/.local/share/tca-themes/<name>.toml`, or accepts an exact file path
+1. Built-in themes - catppuccin-mocha, cyberpunk, dracula, everforest-dark, gruvbox-dark, mono, nord, one-dark, rose-pine, solarized-light, tokyo-night
+1. User preference - reads `~/.config/tca/tca.toml` for a configured default
+1. Auto-detect - picks a dark or light built-in based on the terminal's background color
 
 Passing `None` skips steps 1-2 and goes straight to the user's preference or auto-detection.
 
@@ -52,15 +52,14 @@ Passing `None` skips steps 1-2 and goes straight to the user's preference or aut
 | Crate                           | Purpose                                   |
 | ------------------------------- | ----------------------------------------- |
 | **[tca-ratatui](tca-ratatui/)** | Ratatui integration - `TcaTheme`, widgets |
-| **[tca-loader](tca-loader/)**   | XDG theme file discovery and loading      |
 | **[tca-types](tca-types/)**     | Core TOML types and color resolution      |
-| **[tca](tca/)**                 | CLI — `validate`, `export`, `list`        |
+| **[tca-cli](tca-cli/)**              | CLI — `validate`, `export`, `list`        |
 
 ## Getting Started
 
 ```toml
 [dependencies]
-tca-ratatui = "0.2"
+tca-ratatui = "0.4"
 ```
 
 ```rust

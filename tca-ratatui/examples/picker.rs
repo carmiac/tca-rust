@@ -2,21 +2,19 @@ use ratatui::{
     crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
     DefaultTerminal, Frame,
 };
-use tca_ratatui::{load_all_builtin, ColorPicker, TcaTheme};
+use tca_ratatui::{ColorPicker, TcaTheme, TcaThemeCursor};
 
 use std::{env, io};
 
 struct App {
-    themes: Vec<TcaTheme>,
-    theme_index: usize,
+    themes: TcaThemeCursor,
     exit: bool,
 }
 
 impl App {
-    fn new(themes: Vec<TcaTheme>) -> Self {
+    fn new(themes: TcaThemeCursor) -> Self {
         Self {
             themes,
-            theme_index: 0,
             exit: false,
         }
     }
@@ -43,45 +41,23 @@ impl App {
         match key_event.code {
             KeyCode::Char('q' | 'Q') => self.exit = true,
             KeyCode::Left => {
-                self.theme_index = self.theme_index.saturating_sub(1);
+                self.themes.prev();
             }
             KeyCode::Right => {
-                self.theme_index = (self.theme_index + 1).min(self.themes.len().saturating_sub(1));
+                self.themes.next();
             }
             _ => {}
         }
     }
 
     fn render(&self, frame: &mut Frame) {
-        if let Some(theme) = &self.themes.get(self.theme_index) {
+        if let Some(theme) = &self.themes.peek() {
             let picker = ColorPicker::new(theme)
                 .title("TCA Theme Picker")
                 .instructions("◀ Previous | Next ▶ | Quit Q");
             frame.render_widget(picker, frame.area());
         }
     }
-}
-
-fn load_from_dir(dir: &str) -> anyhow::Result<Vec<TcaTheme>> {
-    let paths: Vec<_> = std::fs::read_dir(dir)?
-        .filter_map(|e| e.ok())
-        .filter(|e| e.path().extension().and_then(|x| x.to_str()) == Some("toml"))
-        .map(|e| e.path())
-        .collect();
-    Ok(paths
-        .iter()
-        .filter_map(|p| p.to_str())
-        .map(|s| TcaTheme::new(Some(s)))
-        .collect())
-}
-
-fn load_from_theme_dir() -> anyhow::Result<Vec<TcaTheme>> {
-    let paths = tca_loader::list_themes()?;
-    Ok(paths
-        .iter()
-        .filter_map(|p| p.to_str())
-        .map(|s| TcaTheme::new(Some(s)))
-        .collect())
 }
 
 fn main() -> anyhow::Result<()> {
@@ -94,7 +70,8 @@ fn main() -> anyhow::Result<()> {
         println!("  [THEME_DIR]   Load themes from a specific directory");
         println!();
         println!("Options:");
-        println!("  --builtin     Load built-in themes instead of user themes");
+        println!("  --builtin     Only load built-in themes");
+        println!("  --user        Only load user themes");
         println!("  -h, --help    Print this help message");
         println!();
         println!("Keys:");
@@ -104,22 +81,30 @@ fn main() -> anyhow::Result<()> {
     }
 
     let builtin_flag = args.iter().any(|a| a == "--builtin");
-    let themes_dir = args.iter().skip(1).find(|a| !a.starts_with('-')).cloned();
+    let user_flag = args.iter().any(|a| a == "--user");
+    let themes_dir = args.iter().skip(1).find(|a| !a.starts_with('-'));
 
-    let mut themes = if builtin_flag {
-        load_all_builtin()
-    } else {
-        match &themes_dir {
-            Some(dir) => load_from_dir(dir)?,
-            None => load_from_theme_dir()?,
+    let themes = match themes_dir {
+        Some(dir) => TcaThemeCursor::new(
+            tca_types::all_from_dir(dir)
+                .into_iter()
+                .map(|t| TcaTheme::try_from(t).unwrap_or_default())
+                .collect(),
+        ),
+        None => {
+            if builtin_flag {
+                TcaThemeCursor::with_builtins()
+            } else if user_flag {
+                TcaThemeCursor::with_user_themes()
+            } else {
+                TcaThemeCursor::with_all_themes()
+            }
         }
     };
-    themes.sort_by_key(|t| t.meta.name.to_string());
-
     if themes.is_empty() {
         eprintln!(
             "No themes found in {:?}",
-            themes_dir.unwrap_or("user theme directory.".to_string())
+            themes_dir.unwrap_or(&"user theme directory.".to_string())
         );
         eprintln!(
             "Usage: {} [--builtin] [theme-directory]",

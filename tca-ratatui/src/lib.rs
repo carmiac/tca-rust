@@ -125,7 +125,11 @@ mod tests;
 
 pub use theme::{Ansi, Base16, ColorRamp, Meta, Palette, Semantic, TcaTheme, TcaThemeBuilder, Ui};
 
-pub use theme::load_all_builtin;
+#[cfg(feature = "fs")]
+pub use tca_types::ThemeCursor;
+
+#[cfg(feature = "fs")]
+pub use theme::TcaThemeCursor;
 
 #[cfg(feature = "widgets")]
 pub use widgets::ColorPicker;

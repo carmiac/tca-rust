@@ -37,10 +37,10 @@ impl ValidationResult {
         for issue in &self.issues {
             match issue {
                 ValidationIssue::Error(msg) => {
-                    println!("{} {}", "✗".red().bold(), msg.red());
+                    eprintln!("{} {}", "✗".red().bold(), msg.red());
                 }
                 ValidationIssue::Warning(msg) => {
-                    println!("{} {}", "⚠".yellow().bold(), msg.yellow());
+                    eprintln!("{} {}", "⚠".yellow().bold(), msg.yellow());
                 }
             }
         }
@@ -103,7 +103,7 @@ fn validate_schema(theme_content: &str, schema_path: &Path) -> Result<Validation
     let schema: serde_json::Value =
         serde_json::from_str(&schema_content).context("Failed to parse schema JSON")?;
 
-    // Convert TOML → JSON for schema validation
+    // Convert TOML -> JSON for schema validation.
     let toml_value: toml::Value =
         toml::from_str(theme_content).context("Failed to parse theme as TOML")?;
     let theme_value: serde_json::Value =
@@ -122,7 +122,7 @@ fn validate_schema(theme_content: &str, schema_path: &Path) -> Result<Validation
 fn validate_ansi_hex(theme: &Theme) -> ValidationResult {
     let mut result = ValidationResult::new();
 
-    // Per spec: ANSI values must be direct hex — no references allowed.
+    // Per spec: ANSI values must be direct hex
     let check = |name: &str, value: &str| -> Option<ValidationIssue> {
         if !value.starts_with('#') {
             Some(ValidationIssue::Error(format!(
@@ -171,63 +171,52 @@ fn validate_references(theme: &Theme) -> ValidationResult {
     let mut result = ValidationResult::new();
 
     // Helper: check that a reference can be resolved
-    let check_ref = |label: &str, value: &str| -> Option<ValidationIssue> {
-        if value.starts_with('#') {
-            return None; // direct hex always valid
+    let mut check = |label: &str, val: &str| {
+        if val.starts_with('#') {
+            return; // direct hex always valid
         }
-        if theme.resolve(value).is_none() {
-            Some(ValidationIssue::Error(format!(
+        if theme.resolve(val).is_none() {
+            result.issues.push(ValidationIssue::Error(format!(
                 "Unresolvable reference in {}: '{}'",
-                label, value
-            )))
-        } else {
-            None
+                label, val
+            )));
         }
     };
-
-    // semantic
-    macro_rules! check {
-        ($label:expr, $val:expr) => {
-            if let Some(issue) = check_ref($label, $val) {
-                result.issues.push(issue);
-            }
-        };
-    }
 
     // palette
     if let Some(palette) = &theme.palette {
         for (ramp_name, ramp) in palette.entries() {
             for (i, color) in ramp.iter().enumerate() {
-                check!(format!("palette.{}.{}", ramp_name, i).as_str(), color);
+                check(&format!("palette.{}.{}", ramp_name, i), color);
             }
         }
     }
     // base16
     if let Some(base16) = &theme.base16 {
         for (key, value) in base16.entries() {
-            check!(format!("base16.{}", key).as_str(), value);
+            check(&format!("base16.{}", key), value);
         }
     }
 
-    check!("semantic.error", &theme.semantic.error);
-    check!("semantic.warning", &theme.semantic.warning);
-    check!("semantic.info", &theme.semantic.info);
-    check!("semantic.success", &theme.semantic.success);
-    check!("semantic.highlight", &theme.semantic.highlight);
-    check!("semantic.link", &theme.semantic.link);
+    check("semantic.error", &theme.semantic.error);
+    check("semantic.warning", &theme.semantic.warning);
+    check("semantic.info", &theme.semantic.info);
+    check("semantic.success", &theme.semantic.success);
+    check("semantic.highlight", &theme.semantic.highlight);
+    check("semantic.link", &theme.semantic.link);
 
     // ui
-    check!("ui.bg.primary", &theme.ui.bg.primary);
-    check!("ui.bg.secondary", &theme.ui.bg.secondary);
-    check!("ui.fg.primary", &theme.ui.fg.primary);
-    check!("ui.fg.secondary", &theme.ui.fg.secondary);
-    check!("ui.fg.muted", &theme.ui.fg.muted);
-    check!("ui.border.primary", &theme.ui.border.primary);
-    check!("ui.border.muted", &theme.ui.border.muted);
-    check!("ui.cursor.primary", &theme.ui.cursor.primary);
-    check!("ui.cursor.muted", &theme.ui.cursor.muted);
-    check!("ui.selection.bg", &theme.ui.selection.bg);
-    check!("ui.selection.fg", &theme.ui.selection.fg);
+    check("ui.bg.primary", &theme.ui.bg.primary);
+    check("ui.bg.secondary", &theme.ui.bg.secondary);
+    check("ui.fg.primary", &theme.ui.fg.primary);
+    check("ui.fg.secondary", &theme.ui.fg.secondary);
+    check("ui.fg.muted", &theme.ui.fg.muted);
+    check("ui.border.primary", &theme.ui.border.primary);
+    check("ui.border.muted", &theme.ui.border.muted);
+    check("ui.cursor.primary", &theme.ui.cursor.primary);
+    check("ui.cursor.muted", &theme.ui.cursor.muted);
+    check("ui.selection.bg", &theme.ui.selection.bg);
+    check("ui.selection.fg", &theme.ui.selection.fg);
 
     result
 }
@@ -235,18 +224,17 @@ fn validate_references(theme: &Theme) -> ValidationResult {
 fn validate_contrast(theme: &Theme) -> Result<ValidationResult> {
     let mut result = ValidationResult::new();
 
-    let resolve = |r: &str| theme.resolve(r).unwrap_or_default();
+    let resolve = |r: &str| theme.resolve(r).map(str::to_owned);
 
-    let bg_primary = resolve(&theme.ui.bg.primary);
-    let bg_secondary = resolve(&theme.ui.bg.secondary);
-
-    if bg_primary.is_empty() || bg_secondary.is_empty() {
+    let (Some(bg_primary), Some(bg_secondary)) = (
+        resolve(&theme.ui.bg.primary),
+        resolve(&theme.ui.bg.secondary),
+    ) else {
         return Ok(result);
-    }
+    };
 
     // fg.primary / bg.* — recommended >4.5, warn <3.5, error <3.0
-    let fg_primary = resolve(&theme.ui.fg.primary);
-    if !fg_primary.is_empty() {
+    if let Some(fg_primary) = resolve(&theme.ui.fg.primary) {
         check_contrast(
             &mut result,
             "ui.fg.primary / bg.primary",
@@ -266,8 +254,7 @@ fn validate_contrast(theme: &Theme) -> Result<ValidationResult> {
     }
 
     // fg.secondary / bg.* — recommended >4.5, warn <3.5, error <3.0
-    let fg_secondary = resolve(&theme.ui.fg.secondary);
-    if !fg_secondary.is_empty() {
+    if let Some(fg_secondary) = resolve(&theme.ui.fg.secondary) {
         check_contrast(
             &mut result,
             "ui.fg.secondary / bg.primary",
@@ -287,8 +274,7 @@ fn validate_contrast(theme: &Theme) -> Result<ValidationResult> {
     }
 
     // fg.muted / bg.* — recommended >3.0, warn <2.5, error <2.0
-    let fg_muted = resolve(&theme.ui.fg.muted);
-    if !fg_muted.is_empty() {
+    if let Some(fg_muted) = resolve(&theme.ui.fg.muted) {
         check_contrast(
             &mut result,
             "ui.fg.muted / bg.primary",
@@ -300,8 +286,7 @@ fn validate_contrast(theme: &Theme) -> Result<ValidationResult> {
     }
 
     // cursor.primary / bg.* — recommended >4.5, warn <3.5, error <3.0
-    let cursor_primary = resolve(&theme.ui.cursor.primary);
-    if !cursor_primary.is_empty() {
+    if let Some(cursor_primary) = resolve(&theme.ui.cursor.primary) {
         check_contrast(
             &mut result,
             "ui.cursor.primary / bg.primary",
@@ -313,8 +298,7 @@ fn validate_contrast(theme: &Theme) -> Result<ValidationResult> {
     }
 
     // cursor.muted / bg.* — recommended >3.0, warn <2.5, error <2.0
-    let cursor_muted = resolve(&theme.ui.cursor.muted);
-    if !cursor_muted.is_empty() {
+    if let Some(cursor_muted) = resolve(&theme.ui.cursor.muted) {
         check_contrast(
             &mut result,
             "ui.cursor.muted / bg.primary",
@@ -326,8 +310,7 @@ fn validate_contrast(theme: &Theme) -> Result<ValidationResult> {
     }
 
     // border.* / bg.* — recommended >3.0, warn <2.5, error <2.0
-    let border_primary = resolve(&theme.ui.border.primary);
-    if !border_primary.is_empty() {
+    if let Some(border_primary) = resolve(&theme.ui.border.primary) {
         check_contrast(
             &mut result,
             "ui.border.primary / bg.primary",
@@ -339,9 +322,10 @@ fn validate_contrast(theme: &Theme) -> Result<ValidationResult> {
     }
 
     // selection.fg / selection.bg — recommended >3.0, warn <2.5, error <2.0
-    let sel_bg = resolve(&theme.ui.selection.bg);
-    let sel_fg = resolve(&theme.ui.selection.fg);
-    if !sel_bg.is_empty() && !sel_fg.is_empty() {
+    if let (Some(sel_bg), Some(sel_fg)) = (
+        resolve(&theme.ui.selection.bg),
+        resolve(&theme.ui.selection.fg),
+    ) {
         check_contrast(
             &mut result,
             "ui.selection.fg / selection.bg",
@@ -361,8 +345,7 @@ fn validate_contrast(theme: &Theme) -> Result<ValidationResult> {
         ("highlight", &theme.semantic.highlight),
         ("link", &theme.semantic.link),
     ] {
-        let color = resolve(color_ref);
-        if !color.is_empty() {
+        if let Some(color) = resolve(color_ref) {
             check_contrast(
                 &mut result,
                 &format!("semantic.{} / bg.primary", name),
@@ -378,7 +361,7 @@ fn validate_contrast(theme: &Theme) -> Result<ValidationResult> {
 }
 
 pub fn run(file_path: &str, schema_path: Option<String>) -> Result<()> {
-    let content = tca_loader::load_theme_file(file_path)?;
+    let content = tca_types::load_theme_file(file_path)?;
 
     let theme: Theme = toml::from_str(&content).context("Failed to parse theme file as TOML")?;
 

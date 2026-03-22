@@ -160,13 +160,8 @@ impl Widget for ColorPicker<'_> {
         ]);
 
         let mut right_lines = vec![Line::from("Base16 Colors:")];
-        let mut keys: Vec<_> = theme.base16.0.keys().collect();
-        keys.sort();
-        for key in keys {
-            if let Some(value) = theme.base16.get(key) {
-                right_lines
-                    .push(Line::from(format!("  {}", key)).style(Style::default().fg(value)));
-            }
+        for (key, value) in theme.base16.entries() {
+            right_lines.push(Line::from(format!("  {}", key)).style(Style::default().fg(value)));
         }
 
         right_lines.push(Line::from(""));
