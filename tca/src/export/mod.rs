@@ -1,13 +1,14 @@
 use anyhow::{Context, Result};
+use std::fmt::Write as _;
 use std::fs;
 use std::io::{self, Write};
 use tca_types::{hex_to_rgb, Theme};
 
-/// Resolve a color reference to its `#RRGGBB` hex value.
-fn resolve_color(reference: &str, theme: &Theme) -> Result<String> {
+/// Resolve a color reference using the theme, returning the hex string.
+fn resolve_color<'a>(color_ref: &'a str, theme: &'a Theme) -> Result<&'a str> {
     theme
-        .resolve(reference)
-        .with_context(|| format!("Failed to resolve color reference: '{}'", reference))
+        .resolve(color_ref)
+        .with_context(|| format!("Could not resolve color reference: '{}'", color_ref))
 }
 
 fn export_base16(theme: &Theme) -> Result<String> {
@@ -20,9 +21,8 @@ fn export_base16(theme: &Theme) -> Result<String> {
     let author = theme.meta.author.as_deref().unwrap_or("Unknown");
 
     let mut output = String::new();
-    output.push_str(&format!("scheme: \"{}\"\n", name));
-    output.push_str(&format!("author: \"{}\"\n", author));
-
+    writeln!(output, "scheme: \"{}\"", name)?;
+    writeln!(output, "author: \"{}\"", author)?;
     for i in 0..16 {
         let key = format!("base{:02X}", i);
         let reference = base16
@@ -30,7 +30,7 @@ fn export_base16(theme: &Theme) -> Result<String> {
             .with_context(|| format!("Missing base16 color: {}", key))?;
         let color = resolve_color(reference, theme)?;
         let hex = color.trim_start_matches('#');
-        output.push_str(&format!("base{:02X}: \"{}\"\n", i, hex));
+        writeln!(output, "base{:02X}: \"{}\"", i, hex)?;
     }
 
     Ok(output)
@@ -38,8 +38,8 @@ fn export_base16(theme: &Theme) -> Result<String> {
 
 fn export_kitty(theme: &Theme) -> Result<String> {
     let mut output = String::new();
-    output.push_str(&format!("# {}\n", theme.meta.name));
-    output.push_str("# Generated from TCA theme\n\n");
+    writeln!(output, "# {}", theme.meta.name)?;
+    writeln!(output, "# Generated from TCA theme\n")?;
 
     let ansi_colors = [
         ("color0", &theme.ansi.black),
@@ -62,54 +62,54 @@ fn export_kitty(theme: &Theme) -> Result<String> {
 
     // ANSI values are hex-only — no resolution needed
     for (name, hex) in ansi_colors {
-        output.push_str(&format!("{} {}\n", name, hex));
+        writeln!(output, "{} {}", name, hex)?;
     }
 
-    output.push_str("\n# UI Colors\n");
+    writeln!(output, "\n# UI Colors")?;
     let fg = resolve_color(&theme.ui.fg.primary, theme)?;
     let bg = resolve_color(&theme.ui.bg.primary, theme)?;
     let cursor = resolve_color(&theme.ui.cursor.primary, theme)?;
     let sel_bg = resolve_color(&theme.ui.selection.bg, theme)?;
     let sel_fg = resolve_color(&theme.ui.selection.fg, theme)?;
-    output.push_str(&format!("foreground {}\n", fg));
-    output.push_str(&format!("background {}\n", bg));
-    output.push_str(&format!("cursor {}\n", cursor));
-    output.push_str(&format!("selection_background {}\n", sel_bg));
-    output.push_str(&format!("selection_foreground {}\n", sel_fg));
+    writeln!(output, "foreground {}", fg)?;
+    writeln!(output, "background {}", bg)?;
+    writeln!(output, "cursor {}", cursor)?;
+    writeln!(output, "selection_background {}", sel_bg)?;
+    writeln!(output, "selection_foreground {}", sel_fg)?;
 
     Ok(output)
 }
 
 fn export_alacritty(theme: &Theme) -> Result<String> {
     let mut output = String::new();
-    output.push_str(&format!("# {}\n", theme.meta.name));
-    output.push_str("# Generated from TCA theme\n\n");
-    output.push_str("[colors.primary]\n");
+    writeln!(output, "# {}", theme.meta.name)?;
+    writeln!(output, "# Generated from TCA theme\n")?;
+    writeln!(output, "[colors.primary]")?;
 
     let fg = resolve_color(&theme.ui.fg.primary, theme)?;
     let bg = resolve_color(&theme.ui.bg.primary, theme)?;
-    output.push_str(&format!("foreground = '{}'\n", fg));
-    output.push_str(&format!("background = '{}'\n", bg));
+    writeln!(output, "foreground = '{}'", fg)?;
+    writeln!(output, "background = '{}'", bg)?;
 
-    output.push_str("\n[colors.normal]\n");
-    output.push_str(&format!("black = '{}'\n", theme.ansi.black));
-    output.push_str(&format!("red = '{}'\n", theme.ansi.red));
-    output.push_str(&format!("green = '{}'\n", theme.ansi.green));
-    output.push_str(&format!("yellow = '{}'\n", theme.ansi.yellow));
-    output.push_str(&format!("blue = '{}'\n", theme.ansi.blue));
-    output.push_str(&format!("magenta = '{}'\n", theme.ansi.magenta));
-    output.push_str(&format!("cyan = '{}'\n", theme.ansi.cyan));
-    output.push_str(&format!("white = '{}'\n", theme.ansi.white));
+    writeln!(output, "\n[colors.normal]")?;
+    writeln!(output, "black = '{}'", theme.ansi.black)?;
+    writeln!(output, "red = '{}'", theme.ansi.red)?;
+    writeln!(output, "green = '{}'", theme.ansi.green)?;
+    writeln!(output, "yellow = '{}'", theme.ansi.yellow)?;
+    writeln!(output, "blue = '{}'", theme.ansi.blue)?;
+    writeln!(output, "magenta = '{}'", theme.ansi.magenta)?;
+    writeln!(output, "cyan = '{}'", theme.ansi.cyan)?;
+    writeln!(output, "white = '{}'", theme.ansi.white)?;
 
-    output.push_str("\n[colors.bright]\n");
-    output.push_str(&format!("black = '{}'\n", theme.ansi.bright_black));
-    output.push_str(&format!("red = '{}'\n", theme.ansi.bright_red));
-    output.push_str(&format!("green = '{}'\n", theme.ansi.bright_green));
-    output.push_str(&format!("yellow = '{}'\n", theme.ansi.bright_yellow));
-    output.push_str(&format!("blue = '{}'\n", theme.ansi.bright_blue));
-    output.push_str(&format!("magenta = '{}'\n", theme.ansi.bright_magenta));
-    output.push_str(&format!("cyan = '{}'\n", theme.ansi.bright_cyan));
-    output.push_str(&format!("white = '{}'\n", theme.ansi.bright_white));
+    writeln!(output, "\n[colors.bright]")?;
+    writeln!(output, "black = '{}'", theme.ansi.bright_black)?;
+    writeln!(output, "red = '{}'", theme.ansi.bright_red)?;
+    writeln!(output, "green = '{}'", theme.ansi.bright_green)?;
+    writeln!(output, "yellow = '{}'", theme.ansi.bright_yellow)?;
+    writeln!(output, "blue = '{}'", theme.ansi.bright_blue)?;
+    writeln!(output, "magenta = '{}'", theme.ansi.bright_magenta)?;
+    writeln!(output, "cyan = '{}'", theme.ansi.bright_cyan)?;
+    writeln!(output, "white = '{}'", theme.ansi.bright_white)?;
 
     Ok(output)
 }
@@ -117,16 +117,17 @@ fn export_alacritty(theme: &Theme) -> Result<String> {
 fn export_vim(theme: &Theme) -> Result<String> {
     let name = theme.meta.name.replace(' ', "");
     let display_name = &theme.meta.name;
+    let background = if theme.meta.dark.unwrap_or(true) { "dark" } else { "light" };
 
     let mut output = String::new();
-    output.push_str(&format!("\" {}\n", display_name));
-    output.push_str("\" Generated from TCA theme\n\n");
-    output.push_str("set background=dark\n");
-    output.push_str("hi clear\n");
-    output.push_str("if exists('syntax_on')\n");
-    output.push_str("  syntax reset\n");
-    output.push_str("endif\n");
-    output.push_str(&format!("let g:colors_name = '{}'\n\n", name));
+    writeln!(output, "\" {}", display_name)?;
+    writeln!(output, "\" Generated from TCA theme\n")?;
+    writeln!(output, "set background={}", background)?;
+    writeln!(output, "hi clear")?;
+    writeln!(output, "if exists('syntax_on')")?;
+    writeln!(output, "  syntax reset")?;
+    writeln!(output, "endif")?;
+    writeln!(output, "let g:colors_name = '{}'\n", name)?;
 
     let ansi_refs: [&str; 16] = [
         &theme.ansi.black,
@@ -147,29 +148,29 @@ fn export_vim(theme: &Theme) -> Result<String> {
         &theme.ansi.bright_white,
     ];
     for (i, hex) in ansi_refs.iter().enumerate() {
-        output.push_str(&format!("let g:terminal_color_{} = '{}'\n", i, hex));
+        writeln!(output, "let g:terminal_color_{} = '{}'", i, hex)?;
     }
 
-    output.push_str("\n\" UI colors\n");
+    writeln!(output, "\n\" UI colors")?;
     let bg = resolve_color(&theme.ui.bg.primary, theme)?;
     let fg = resolve_color(&theme.ui.fg.primary, theme)?;
-    output.push_str(&format!("hi Normal guifg={} guibg={}\n", fg, bg));
+    writeln!(output, "hi Normal guifg={} guibg={}", fg, bg)?;
 
     Ok(output)
 }
 
 fn export_helix(theme: &Theme) -> Result<String> {
     let mut output = String::new();
-    output.push_str(&format!("# {}\n", theme.meta.name));
-    output.push_str("# Generated from TCA theme\n\n");
+    writeln!(output, "# {}", theme.meta.name)?;
+    writeln!(output, "# Generated from TCA theme\n")?;
 
-    output.push_str("[ui]\n");
+    writeln!(output, "[ui]")?;
     let bg = resolve_color(&theme.ui.bg.primary, theme)?;
     let fg = resolve_color(&theme.ui.fg.primary, theme)?;
-    output.push_str(&format!("background = \"{}\"\n", bg));
-    output.push_str(&format!("foreground = \"{}\"\n", fg));
+    writeln!(output, "background = \"{}\"", bg)?;
+    writeln!(output, "foreground = \"{}\"", fg)?;
 
-    output.push_str("\n[palette]\n");
+    writeln!(output, "\n[palette]")?;
     let palette_entries = [
         ("black", &theme.ansi.black),
         ("red", &theme.ansi.red),
@@ -189,7 +190,7 @@ fn export_helix(theme: &Theme) -> Result<String> {
         ("bright-white", &theme.ansi.bright_white),
     ];
     for (name, hex) in palette_entries {
-        output.push_str(&format!("{} = \"{}\"\n", name, hex));
+        writeln!(output, "{} = \"{}\"", name, hex)?;
     }
 
     Ok(output)
@@ -197,14 +198,11 @@ fn export_helix(theme: &Theme) -> Result<String> {
 
 fn export_starship(theme: &Theme) -> Result<String> {
     let mut output = String::new();
-    output.push_str(&format!(
-        "# Starship configuration for {}\n",
-        theme.meta.name
-    ));
-    output.push_str("# Generated from TCA theme\n");
-    output.push_str("# Add this to your starship.toml\n\n");
+    writeln!(output, "# Starship configuration for {}", theme.meta.name)?;
+    writeln!(output, "# Generated from TCA theme")?;
+    writeln!(output, "# Add this to your starship.toml\n")?;
 
-    output.push_str("[palettes.tca]\n");
+    writeln!(output, "[palettes.tca]")?;
     let entries = [
         ("black", &theme.ansi.black),
         ("red", &theme.ansi.red),
@@ -224,38 +222,81 @@ fn export_starship(theme: &Theme) -> Result<String> {
         ("bright_white", &theme.ansi.bright_white),
     ];
     for (name, hex) in entries {
-        output.push_str(&format!("{} = \"{}\"\n", name, hex));
+        writeln!(output, "{} = \"{}\"", name, hex)?;
     }
 
-    output.push_str("\n# Enable the palette\npalette = \"tca\"\n");
+    writeln!(output, "\n# Enable the palette\npalette = \"tca\"")?;
 
     Ok(output)
 }
 
 fn export_vscode(theme: &Theme) -> Result<String> {
     let name = &theme.meta.name;
-
-    let mut theme_json = serde_json::json!({
-        "name": name,
-        "type": if theme.meta.dark.unwrap_or(true) { "dark" } else { "light" },
-        "colors": {}
-    });
-
-    let colors = theme_json
-        .get_mut("colors")
-        .and_then(|c| c.as_object_mut())
-        .context("Theme JSON missing 'colors' object")?;
+    let theme_type = if theme.meta.dark.unwrap_or(true) { "dark" } else { "light" };
 
     let bg = resolve_color(&theme.ui.bg.primary, theme)?;
+    let bg_secondary = resolve_color(&theme.ui.bg.secondary, theme)?;
     let fg = resolve_color(&theme.ui.fg.primary, theme)?;
+    let fg_secondary = resolve_color(&theme.ui.fg.secondary, theme)?;
+    let fg_muted = resolve_color(&theme.ui.fg.muted, theme)?;
     let sel_bg = resolve_color(&theme.ui.selection.bg, theme)?;
-    colors.insert("editor.background".to_string(), serde_json::json!(bg));
-    colors.insert("editor.foreground".to_string(), serde_json::json!(fg));
-    colors.insert(
-        "editor.selectionBackground".to_string(),
-        serde_json::json!(sel_bg),
-    );
+    let sel_fg = resolve_color(&theme.ui.selection.fg, theme)?;
+    let cursor = resolve_color(&theme.ui.cursor.primary, theme)?;
+    let border = resolve_color(&theme.ui.border.primary, theme)?;
+    let border_muted = resolve_color(&theme.ui.border.muted, theme)?;
 
+    let mut colors = serde_json::Map::new();
+
+    // Editor
+    colors.insert("editor.background".into(), serde_json::json!(bg));
+    colors.insert("editor.foreground".into(), serde_json::json!(fg));
+    colors.insert("editor.selectionBackground".into(), serde_json::json!(sel_bg));
+    colors.insert("editor.selectionForeground".into(), serde_json::json!(sel_fg));
+    colors.insert("editor.lineHighlightBackground".into(), serde_json::json!(bg_secondary));
+    colors.insert("editorCursor.foreground".into(), serde_json::json!(cursor));
+    colors.insert("editorLineNumber.foreground".into(), serde_json::json!(fg_muted));
+    colors.insert("editorLineNumber.activeForeground".into(), serde_json::json!(fg));
+
+    // Borders and focus
+    colors.insert("focusBorder".into(), serde_json::json!(border));
+    colors.insert("editorGroup.border".into(), serde_json::json!(border));
+    colors.insert("panel.border".into(), serde_json::json!(border));
+
+    // Sidebar
+    colors.insert("sideBar.background".into(), serde_json::json!(bg_secondary));
+    colors.insert("sideBar.foreground".into(), serde_json::json!(fg_secondary));
+    colors.insert("sideBar.border".into(), serde_json::json!(border_muted));
+
+    // Activity bar
+    colors.insert("activityBar.background".into(), serde_json::json!(bg));
+    colors.insert("activityBar.foreground".into(), serde_json::json!(fg));
+    colors.insert("activityBar.border".into(), serde_json::json!(border_muted));
+
+    // Status bar
+    colors.insert("statusBar.background".into(), serde_json::json!(bg));
+    colors.insert("statusBar.foreground".into(), serde_json::json!(fg));
+
+    // Tabs
+    colors.insert("tab.activeBackground".into(), serde_json::json!(bg));
+    colors.insert("tab.activeForeground".into(), serde_json::json!(fg));
+    colors.insert("tab.inactiveBackground".into(), serde_json::json!(bg_secondary));
+    colors.insert("tab.inactiveForeground".into(), serde_json::json!(fg_muted));
+    colors.insert("editorGroupHeader.tabsBackground".into(), serde_json::json!(bg_secondary));
+
+    // Panel
+    colors.insert("panel.background".into(), serde_json::json!(bg_secondary));
+
+    // Semantic indicators
+    let err = resolve_color(&theme.semantic.error, theme)?;
+    let warn = resolve_color(&theme.semantic.warning, theme)?;
+    let info = resolve_color(&theme.semantic.info, theme)?;
+    let link = resolve_color(&theme.semantic.link, theme)?;
+    colors.insert("editorError.foreground".into(), serde_json::json!(err));
+    colors.insert("editorWarning.foreground".into(), serde_json::json!(warn));
+    colors.insert("editorInfo.foreground".into(), serde_json::json!(info));
+    colors.insert("editorLink.activeForeground".into(), serde_json::json!(link));
+
+    // Terminal ANSI colors
     let terminal_colors = [
         ("terminal.ansiBlack", &theme.ansi.black),
         ("terminal.ansiRed", &theme.ansi.red),
@@ -275,38 +316,38 @@ fn export_vscode(theme: &Theme) -> Result<String> {
         ("terminal.ansiBrightWhite", &theme.ansi.bright_white),
     ];
     for (key, hex) in terminal_colors {
-        colors.insert(key.to_string(), serde_json::json!(hex));
+        colors.insert(key.into(), serde_json::json!(hex));
     }
+
+    let theme_json = serde_json::json!({
+        "name": name,
+        "type": theme_type,
+        "colors": colors,
+    });
 
     Ok(serde_json::to_string_pretty(&theme_json)?)
 }
 
+fn write_iterm_color(output: &mut String, key: &str, hex: &str) -> Result<()> {
+    let (r8, g8, b8) =
+        hex_to_rgb(hex).with_context(|| format!("Invalid hex color: {}", hex))?;
+    let (r, g, b) = (r8 as f64 / 255.0, g8 as f64 / 255.0, b8 as f64 / 255.0);
+    writeln!(output, "\t<key>{}</key>", key)?;
+    writeln!(output, "\t<dict>")?;
+    writeln!(output, "\t\t<key>Color Space</key><string>sRGB</string>")?;
+    writeln!(output, "\t\t<key>Red Component</key><real>{}</real>", r)?;
+    writeln!(output, "\t\t<key>Green Component</key><real>{}</real>", g)?;
+    writeln!(output, "\t\t<key>Blue Component</key><real>{}</real>", b)?;
+    writeln!(output, "\t</dict>")?;
+    Ok(())
+}
+
 fn export_iterm2(theme: &Theme) -> Result<String> {
     let mut output = String::new();
-    output.push_str("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
-    output.push_str("<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n");
-    output.push_str("<plist version=\"1.0\">\n");
-    output.push_str("<dict>\n");
-
-    let write_color = |output: &mut String, key: &str, hex: &str| -> Result<()> {
-        let (r8, g8, b8) =
-            hex_to_rgb(hex).with_context(|| format!("Invalid hex color: {}", hex))?;
-        let (r, g, b) = (r8 as f64 / 255.0, g8 as f64 / 255.0, b8 as f64 / 255.0);
-        output.push_str(&format!("\t<key>{}</key>\n", key));
-        output.push_str("\t<dict>\n");
-        output.push_str("\t\t<key>Color Space</key><string>sRGB</string>\n");
-        output.push_str(&format!("\t\t<key>Red Component</key><real>{}</real>\n", r));
-        output.push_str(&format!(
-            "\t\t<key>Green Component</key><real>{}</real>\n",
-            g
-        ));
-        output.push_str(&format!(
-            "\t\t<key>Blue Component</key><real>{}</real>\n",
-            b
-        ));
-        output.push_str("\t</dict>\n");
-        Ok(())
-    };
+    writeln!(output, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>")?;
+    writeln!(output, "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">")?;
+    writeln!(output, "<plist version=\"1.0\">")?;
+    writeln!(output, "<dict>")?;
 
     let ansi_colors = [
         ("Ansi 0 Color", &theme.ansi.black),
@@ -327,25 +368,25 @@ fn export_iterm2(theme: &Theme) -> Result<String> {
         ("Ansi 15 Color", &theme.ansi.bright_white),
     ];
     for (key, hex) in ansi_colors {
-        write_color(&mut output, key, hex)?;
+        write_iterm_color(&mut output, key, hex)?;
     }
 
     let bg = resolve_color(&theme.ui.bg.primary, theme)?;
     let fg = resolve_color(&theme.ui.fg.primary, theme)?;
     let cursor = resolve_color(&theme.ui.cursor.primary, theme)?;
-    write_color(&mut output, "Background Color", &bg)?;
-    write_color(&mut output, "Foreground Color", &fg)?;
-    write_color(&mut output, "Cursor Color", &cursor)?;
+    write_iterm_color(&mut output, "Background Color", bg)?;
+    write_iterm_color(&mut output, "Foreground Color", fg)?;
+    write_iterm_color(&mut output, "Cursor Color", cursor)?;
 
-    output.push_str("</dict>\n</plist>\n");
+    writeln!(output, "</dict>\n</plist>")?;
     Ok(output)
 }
 
 fn export_tmux(theme: &Theme) -> Result<String> {
     let mut output = String::new();
-    output.push_str(&format!("# TCA Theme: {}\n", theme.meta.name));
-    output.push_str("# Generated by tca-export\n");
-    output.push_str("# Usage: source this file in your tmux.conf\n\n");
+    writeln!(output, "# TCA Theme: {}", theme.meta.name)?;
+    writeln!(output, "# Generated by tca-export")?;
+    writeln!(output, "# Usage: source this file in your tmux.conf\n")?;
 
     let bg_primary = resolve_color(&theme.ui.bg.primary, theme)?;
     let fg_primary = resolve_color(&theme.ui.fg.primary, theme)?;
@@ -355,65 +396,35 @@ fn export_tmux(theme: &Theme) -> Result<String> {
     let active_border = &theme.ansi.blue;
     let inactive_border = &theme.ansi.bright_black;
 
-    output.push_str("# Status bar\n");
-    output.push_str(&format!(
-        "set-option -g status-style \"bg={},fg={}\"\n",
-        bg_primary, fg_primary
-    ));
-    output.push_str(&format!(
-        "set-option -g status-left-style \"bg={},fg={}\"\n",
-        bg_primary, fg_primary
-    ));
-    output.push_str(&format!(
-        "set-option -g status-right-style \"bg={},fg={}\"\n",
-        bg_primary, fg_primary
-    ));
-    output.push('\n');
+    writeln!(output, "# Status bar")?;
+    writeln!(output, "set-option -g status-style \"bg={},fg={}\"", bg_primary, fg_primary)?;
+    writeln!(output, "set-option -g status-left-style \"bg={},fg={}\"", bg_primary, fg_primary)?;
+    writeln!(output, "set-option -g status-right-style \"bg={},fg={}\"", bg_primary, fg_primary)?;
+    writeln!(output)?;
 
-    output.push_str("# Window status\n");
-    output.push_str(&format!(
-        "set-option -g window-status-style \"bg={},fg={}\"\n",
-        bg_primary, fg_muted
-    ));
-    output.push_str(&format!(
-        "set-option -g window-status-current-style \"bg={},fg={}\"\n",
-        sel_bg, fg_primary
-    ));
-    output.push('\n');
+    writeln!(output, "# Window status")?;
+    writeln!(output, "set-option -g window-status-style \"bg={},fg={}\"", bg_primary, fg_muted)?;
+    writeln!(output, "set-option -g window-status-current-style \"bg={},fg={}\"", sel_bg, fg_primary)?;
+    writeln!(output)?;
 
-    output.push_str("# Pane borders\n");
-    output.push_str(&format!(
-        "set-option -g pane-border-style \"fg={}\"\n",
-        inactive_border
-    ));
-    output.push_str(&format!(
-        "set-option -g pane-active-border-style \"fg={}\"\n",
-        active_border
-    ));
-    output.push('\n');
+    writeln!(output, "# Pane borders")?;
+    writeln!(output, "set-option -g pane-border-style \"fg={}\"", inactive_border)?;
+    writeln!(output, "set-option -g pane-active-border-style \"fg={}\"", active_border)?;
+    writeln!(output)?;
 
-    output.push_str("# Message style\n");
-    output.push_str(&format!(
-        "set-option -g message-style \"bg={},fg={}\"\n",
-        sel_bg, fg_primary
-    ));
-    output.push_str(&format!(
-        "set-option -g message-command-style \"bg={},fg={}\"\n",
-        bg_primary, fg_primary
-    ));
-    output.push('\n');
+    writeln!(output, "# Message style")?;
+    writeln!(output, "set-option -g message-style \"bg={},fg={}\"", sel_bg, fg_primary)?;
+    writeln!(output, "set-option -g message-command-style \"bg={},fg={}\"", bg_primary, fg_primary)?;
+    writeln!(output)?;
 
-    output.push_str("# Copy mode\n");
-    output.push_str(&format!(
-        "set-window-option -g mode-style \"bg={},fg={}\"\n",
-        sel_bg, fg_primary
-    ));
+    writeln!(output, "# Copy mode")?;
+    writeln!(output, "set-window-option -g mode-style \"bg={},fg={}\"", sel_bg, fg_primary)?;
 
     Ok(output)
 }
 
 pub fn run(file_path: &str, format: &str, output: Option<&str>) -> Result<()> {
-    let content = tca_loader::load_theme_file(file_path)?;
+    let content = tca_types::load_theme_file(file_path)?;
 
     let theme: Theme = toml::from_str(&content).context("Failed to parse theme file as TOML")?;
 
@@ -442,4 +453,175 @@ pub fn run(file_path: &str, format: &str, output: Option<&str>) -> Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tca_types::{Ansi, Meta, Semantic, Ui, UiBg, UiBorder, UiCursor, UiFg, UiSelection};
+
+    fn make_test_theme() -> Theme {
+        Theme {
+            meta: Meta {
+                name: "Test Theme".to_string(),
+                slug: None,
+                author: Some("Test Author".to_string()),
+                version: None,
+                description: None,
+                dark: Some(true),
+            },
+            ansi: Ansi {
+                black: "#000000".to_string(),
+                red: "#cc0000".to_string(),
+                green: "#4e9a06".to_string(),
+                yellow: "#c4a000".to_string(),
+                blue: "#3465a4".to_string(),
+                magenta: "#75507b".to_string(),
+                cyan: "#06989a".to_string(),
+                white: "#d3d7cf".to_string(),
+                bright_black: "#555753".to_string(),
+                bright_red: "#ef2929".to_string(),
+                bright_green: "#8ae234".to_string(),
+                bright_yellow: "#fce94f".to_string(),
+                bright_blue: "#729fcf".to_string(),
+                bright_magenta: "#ad7fa8".to_string(),
+                bright_cyan: "#34e2e2".to_string(),
+                bright_white: "#eeeeec".to_string(),
+            },
+            palette: None,
+            base16: None,
+            semantic: Semantic {
+                error: "#cc0000".to_string(),
+                warning: "#c4a000".to_string(),
+                info: "#3465a4".to_string(),
+                success: "#4e9a06".to_string(),
+                highlight: "#c4a000".to_string(),
+                link: "#06989a".to_string(),
+            },
+            ui: Ui {
+                bg: UiBg {
+                    primary: "#1c1c1c".to_string(),
+                    secondary: "#2c2c2c".to_string(),
+                },
+                fg: UiFg {
+                    primary: "#eeeeec".to_string(),
+                    secondary: "#d3d7cf".to_string(),
+                    muted: "#888a85".to_string(),
+                },
+                border: UiBorder {
+                    primary: "#555753".to_string(),
+                    muted: "#2c2c2c".to_string(),
+                },
+                cursor: UiCursor {
+                    primary: "#eeeeec".to_string(),
+                    muted: "#888a85".to_string(),
+                },
+                selection: UiSelection {
+                    bg: "#3465a4".to_string(),
+                    fg: "#eeeeec".to_string(),
+                },
+            },
+        }
+    }
+
+    #[test]
+    fn test_export_kitty() {
+        let theme = make_test_theme();
+        let out = export_kitty(&theme).unwrap();
+        assert!(out.contains("# Test Theme"), "missing header");
+        assert!(out.contains("color0 #000000"), "missing ANSI black");
+        assert!(out.contains("color15 #eeeeec"), "missing ANSI bright_white");
+        assert!(out.contains("background #1c1c1c"), "missing background");
+        assert!(out.contains("foreground #eeeeec"), "missing foreground");
+        assert!(out.contains("cursor #eeeeec"), "missing cursor");
+        assert!(out.contains("selection_background #3465a4"), "missing selection_bg");
+    }
+
+    #[test]
+    fn test_export_alacritty() {
+        let theme = make_test_theme();
+        let out = export_alacritty(&theme).unwrap();
+        assert!(out.contains("[colors.primary]"), "missing primary section");
+        assert!(out.contains("[colors.normal]"), "missing normal section");
+        assert!(out.contains("[colors.bright]"), "missing bright section");
+        assert!(out.contains("background = '#1c1c1c'"), "missing background");
+        assert!(out.contains("foreground = '#eeeeec'"), "missing foreground");
+        assert!(out.contains("black = '#000000'"), "missing normal black");
+    }
+
+    #[test]
+    fn test_export_vim_dark() {
+        let theme = make_test_theme();
+        let out = export_vim(&theme).unwrap();
+        assert!(out.contains("set background=dark"), "missing dark background");
+        assert!(out.contains("let g:colors_name = 'TestTheme'"), "missing colors_name");
+        assert!(out.contains("let g:terminal_color_0 = '#000000'"), "missing terminal color");
+        assert!(out.contains("hi Normal guifg=#eeeeec guibg=#1c1c1c"), "missing Normal highlight");
+    }
+
+    #[test]
+    fn test_export_vim_light() {
+        let mut theme = make_test_theme();
+        theme.meta.dark = Some(false);
+        let out = export_vim(&theme).unwrap();
+        assert!(out.contains("set background=light"), "should be light background");
+    }
+
+    #[test]
+    fn test_export_helix() {
+        let theme = make_test_theme();
+        let out = export_helix(&theme).unwrap();
+        assert!(out.contains("[ui]"), "missing ui section");
+        assert!(out.contains("[palette]"), "missing palette section");
+        assert!(out.contains("background = \"#1c1c1c\""), "missing background");
+        assert!(out.contains("foreground = \"#eeeeec\""), "missing foreground");
+        assert!(out.contains("black = \"#000000\""), "missing black palette entry");
+    }
+
+    #[test]
+    fn test_export_starship() {
+        let theme = make_test_theme();
+        let out = export_starship(&theme).unwrap();
+        assert!(out.contains("[palettes.tca]"), "missing palette section");
+        assert!(out.contains("palette = \"tca\""), "missing palette enable");
+        assert!(out.contains("black = \"#000000\""), "missing black entry");
+    }
+
+    #[test]
+    fn test_export_vscode() {
+        let theme = make_test_theme();
+        let out = export_vscode(&theme).unwrap();
+        let v: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
+        assert_eq!(v["type"], "dark");
+        assert_eq!(v["name"], "Test Theme");
+        assert_eq!(v["colors"]["editor.background"], "#1c1c1c");
+        assert_eq!(v["colors"]["editor.foreground"], "#eeeeec");
+        assert_eq!(v["colors"]["editorCursor.foreground"], "#eeeeec");
+        assert_eq!(v["colors"]["sideBar.background"], "#2c2c2c");
+        assert_eq!(v["colors"]["activityBar.background"], "#1c1c1c");
+        assert_eq!(v["colors"]["terminal.ansiBlack"], "#000000");
+        assert_eq!(v["colors"]["editorError.foreground"], "#cc0000");
+    }
+
+    #[test]
+    fn test_export_iterm2() {
+        let theme = make_test_theme();
+        let out = export_iterm2(&theme).unwrap();
+        assert!(out.contains("<?xml"), "missing XML header");
+        assert!(out.contains("<plist"), "missing plist tag");
+        assert!(out.contains("Ansi 0 Color"), "missing ANSI 0");
+        assert!(out.contains("Background Color"), "missing background");
+        assert!(out.contains("Foreground Color"), "missing foreground");
+        assert!(out.contains("sRGB"), "missing color space");
+    }
+
+    #[test]
+    fn test_export_tmux() {
+        let theme = make_test_theme();
+        let out = export_tmux(&theme).unwrap();
+        assert!(out.contains("# TCA Theme: Test Theme"), "missing header");
+        assert!(out.contains("set-option -g status-style"), "missing status-style");
+        assert!(out.contains("set-option -g pane-border-style"), "missing pane-border");
+        assert!(out.contains("set-option -g pane-active-border-style"), "missing active border");
+    }
 }
