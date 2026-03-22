@@ -189,10 +189,10 @@ TcaTheme
 
 ```toml
 # Builder-only, no file I/O or widgets
-tca-ratatui = { version = "0.3", default-features = false }
+tca-ratatui = { version = "0.4", default-features = false }
 
 # With widgets only
-tca-ratatui = { version = "0.3", features = ["widgets"] }
+tca-ratatui = { version = "0.4", features = ["widgets"] }
 ```
 
 ## Examples

@@ -13,7 +13,7 @@ Or from source:
 ```sh
 git clone https://github.com/carmiac/tca-rust
 cd tca-rust
-cargo install --path tca
+cargo install --path tca-cli
 ```
 
 ## Commands

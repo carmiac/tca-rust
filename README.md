@@ -53,13 +53,13 @@ Passing `None` skips steps 1-2 and goes straight to the user's preference or aut
 | ------------------------------- | ----------------------------------------- |
 | **[tca-ratatui](tca-ratatui/)** | Ratatui integration - `TcaTheme`, widgets |
 | **[tca-types](tca-types/)**     | Core TOML types and color resolution      |
-| **[tca](tca/)**                 | CLI — `validate`, `export`, `list`        |
+| **[tca-cli](tca-cli/)**              | CLI — `validate`, `export`, `list`        |
 
 ## Getting Started
 
 ```toml
 [dependencies]
-tca-ratatui = "0.2"
+tca-ratatui = "0.4"
 ```
 
 ```rust

@@ -173,7 +173,7 @@ Fields outside `[ansi]` may use any of these formats:
 
 ```toml
 # Without file I/O (built-ins and TOML parsing still available)
-tca-types = { version = "0.3", default-features = false }
+tca-types = { version = "0.4", default-features = false }
 ```
 
 ## License
