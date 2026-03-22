@@ -1,4 +1,4 @@
-# tca
+# Tca-Cli
 
 CLI tool for validating and exporting [TCA](https://github.com/carmiac/tca-rust) theme files.
 
@@ -59,7 +59,7 @@ Lists all installed themes.
 tca list
 ```
 
-## Theme directory
+## Theme Directory
 
 Themes are `.toml` files in `~/.local/share/tca-themes/` (or `$XDG_DATA_HOME/tca-themes/`).
 
@@ -68,6 +68,7 @@ Themes are `.toml` files in `~/.local/share/tca-themes/` (or `$XDG_DATA_HOME/tca
 - Init command to create default config and add default theme files
 - Download and install themes
 - Import base16/24 themes into TCA format
+- Export to base24
 
 ## License
 

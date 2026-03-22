@@ -176,7 +176,7 @@ fn test_theme_author_none() {
     assert_eq!(theme.meta.author, None);
 }
 
-#[cfg(feature = "loader")]
+#[cfg(feature = "fs")]
 mod loader_tests {
     use super::*;
 

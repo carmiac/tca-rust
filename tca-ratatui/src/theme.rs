@@ -3,7 +3,9 @@ use anyhow::{Context, Result};
 use ratatui::style::Color;
 use std::collections::HashMap;
 
-use tca_types::{BuiltinTheme, TcaConfig};
+#[cfg(feature = "fs")]
+use tca_types::BuiltinTheme;
+
 /// Theme metadata.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Meta {
@@ -181,6 +183,17 @@ impl Base16 {
     pub fn get(&self, key: &str) -> Option<Color> {
         self.0.get(key).copied()
     }
+
+    /// Iterates over all `(key, color)` pairs in sorted key order.
+    pub fn entries(&self) -> impl Iterator<Item = (&str, Color)> {
+        let mut pairs: Vec<(&str, Color)> = self
+            .0
+            .iter()
+            .map(|(k, &v)| (k.as_str(), v))
+            .collect();
+        pairs.sort_by_key(|(k, _)| *k);
+        pairs.into_iter()
+    }
 }
 
 /// Semantic color roles.
@@ -299,39 +312,17 @@ impl TcaTheme {
     /// The search fallback order is:
     /// 1. Local theme files.
     /// 2. Built in themes.
-    /// 3. User configured default theme.
-    /// 4. Built in default light/dark mode theme based on current mode.
+    /// 3. Built in default light/dark mode theme based on current terminal mode.
     #[cfg(feature = "fs")]
     pub fn new(name: Option<&str>) -> Self {
-        // 1. Try loading by name/path from the themes directory
-        name.and_then(|n| tca_loader::load_theme_file(n).ok())
-            .and_then(|s| TcaTheme::try_from(s.as_str()).ok())
-            // 2. Try the named built-in theme
-            .or_else(|| {
-                name.and_then(|n| {
-                    let slug = heck::AsKebabCase(n).to_string();
-                    slug.parse::<BuiltinTheme>()
-                        .ok()
-                        .and_then(|b| TcaTheme::try_from(b.theme()).ok())
-                })
-            })
-            // 3. Try the global config default
-            //    (e.g. ~/.config/tca/config.toml has `default_theme = "nord"`)
-            .or_else(|| {
-                TcaConfig::load()
-                    .mode_aware_theme()
-                    .and_then(|n| n.parse::<BuiltinTheme>().ok())
-                    .and_then(|b| TcaTheme::try_from(b.theme()).ok())
-            })
-            // 4. Hardcoded default — always succeeds
-            .unwrap_or_else(|| {
-                use terminal_colorsaurus::{theme_mode, QueryOptions, ThemeMode};
-                let builtin = match theme_mode(QueryOptions::default()).ok() {
-                    Some(ThemeMode::Light) => BuiltinTheme::default_light(),
-                    _ => BuiltinTheme::default_dark(),
-                };
-                TcaTheme::try_from(builtin.theme()).expect("hardcoded default must be valid")
-            })
+        TcaTheme::try_from(tca_types::Theme::from_name(name)).unwrap_or_else(|_| {
+            use terminal_colorsaurus::{theme_mode, QueryOptions, ThemeMode};
+            let builtin = match theme_mode(QueryOptions::default()).ok() {
+                Some(ThemeMode::Light) => BuiltinTheme::default_light(),
+                _ => BuiltinTheme::default(),
+            };
+            TcaTheme::try_from(builtin.theme()).expect("hardcoded default must be valid")
+        })
     }
 }
 
@@ -352,7 +343,12 @@ impl TryFrom<&str> for TcaTheme {
     }
 }
 
-#[doc(hidden)]
+/// Converts a raw [`tca_types::Theme`] into a fully resolved [`TcaTheme`].
+///
+/// ANSI hex values are parsed strictly — malformed hex returns an error.
+/// Semantic and UI color references that cannot be resolved fall back to
+/// the named-color defaults from [`Semantic::default`] and [`Ui::default`].
+#[cfg(feature = "fs")]
 impl TryFrom<tca_types::Theme> for TcaTheme {
     type Error = anyhow::Error;
     fn try_from(raw: tca_types::Theme) -> Result<TcaTheme, Self::Error> {
@@ -365,29 +361,29 @@ impl TryFrom<tca_types::Theme> for TcaTheme {
 
         let resolve = |r: &str| resolve_ref(r, &ansi, &palette, &base16);
 
-        let semantic = Semantic::default();
+        let defaults = Semantic::default();
         let semantic = Semantic {
-            error: resolve(&raw.semantic.error).unwrap_or(semantic.error),
-            warning: resolve(&raw.semantic.warning).unwrap_or(semantic.warning),
-            info: resolve(&raw.semantic.info).unwrap_or(semantic.info),
-            success: resolve(&raw.semantic.success).unwrap_or(semantic.success),
-            highlight: resolve(&raw.semantic.highlight).unwrap_or(semantic.highlight),
-            link: resolve(&raw.semantic.link).unwrap_or(semantic.link),
+            error: resolve(&raw.semantic.error).unwrap_or(defaults.error),
+            warning: resolve(&raw.semantic.warning).unwrap_or(defaults.warning),
+            info: resolve(&raw.semantic.info).unwrap_or(defaults.info),
+            success: resolve(&raw.semantic.success).unwrap_or(defaults.success),
+            highlight: resolve(&raw.semantic.highlight).unwrap_or(defaults.highlight),
+            link: resolve(&raw.semantic.link).unwrap_or(defaults.link),
         };
 
-        let ui = Ui::default();
+        let defaults = Ui::default();
         let ui = Ui {
-            bg_primary: resolve(&raw.ui.bg.primary).unwrap_or(ui.bg_primary),
-            bg_secondary: resolve(&raw.ui.bg.secondary).unwrap_or(ui.bg_secondary),
-            fg_primary: resolve(&raw.ui.fg.primary).unwrap_or(ui.fg_primary),
-            fg_secondary: resolve(&raw.ui.fg.secondary).unwrap_or(ui.fg_secondary),
-            fg_muted: resolve(&raw.ui.fg.muted).unwrap_or(ui.fg_muted),
-            border_primary: resolve(&raw.ui.border.primary).unwrap_or(ui.border_primary),
-            border_muted: resolve(&raw.ui.border.muted).unwrap_or(ui.border_muted),
-            cursor_primary: resolve(&raw.ui.cursor.primary).unwrap_or(ui.cursor_primary),
-            cursor_muted: resolve(&raw.ui.cursor.muted).unwrap_or(ui.cursor_muted),
-            selection_bg: resolve(&raw.ui.selection.bg).unwrap_or(ui.selection_bg),
-            selection_fg: resolve(&raw.ui.selection.fg).unwrap_or(ui.selection_fg),
+            bg_primary: resolve(&raw.ui.bg.primary).unwrap_or(defaults.bg_primary),
+            bg_secondary: resolve(&raw.ui.bg.secondary).unwrap_or(defaults.bg_secondary),
+            fg_primary: resolve(&raw.ui.fg.primary).unwrap_or(defaults.fg_primary),
+            fg_secondary: resolve(&raw.ui.fg.secondary).unwrap_or(defaults.fg_secondary),
+            fg_muted: resolve(&raw.ui.fg.muted).unwrap_or(defaults.fg_muted),
+            border_primary: resolve(&raw.ui.border.primary).unwrap_or(defaults.border_primary),
+            border_muted: resolve(&raw.ui.border.muted).unwrap_or(defaults.border_muted),
+            cursor_primary: resolve(&raw.ui.cursor.primary).unwrap_or(defaults.cursor_primary),
+            cursor_muted: resolve(&raw.ui.cursor.muted).unwrap_or(defaults.cursor_muted),
+            selection_bg: resolve(&raw.ui.selection.bg).unwrap_or(defaults.selection_bg),
+            selection_fg: resolve(&raw.ui.selection.fg).unwrap_or(defaults.selection_fg),
         };
 
         let meta = Meta {
@@ -497,6 +493,7 @@ impl TcaThemeBuilder {
 }
 
 /// Parse `#RRGGBB` hex into [`Color::Rgb`]. Returns `None` on malformed input.
+#[cfg(feature = "fs")]
 fn hex_to_color(hex: &str) -> Option<Color> {
     let (r, g, b) = tca_types::hex_to_rgb(hex).ok()?;
     Some(Color::Rgb(r, g, b))
@@ -505,28 +502,22 @@ fn hex_to_color(hex: &str) -> Option<Color> {
 /// Resolve a color reference string to a [`Color`].
 ///
 /// Supported formats: `#RRGGBB`, `ansi.<key>`, `palette.<ramp>.<index>`, `base16.<key>`.
+/// Returns `None` if the reference cannot be resolved.
 #[cfg(feature = "fs")]
-fn resolve_ref(r: &str, ansi: &Ansi, palette: &Palette, base16: &Base16) -> Result<Color> {
-    use anyhow::anyhow;
-
+fn resolve_ref(r: &str, ansi: &Ansi, palette: &Palette, base16: &Base16) -> Option<Color> {
     if r.starts_with('#') {
-        return hex_to_color(r).with_context(|| format!("Invalid hex color {:?}", r));
+        return hex_to_color(r);
     }
 
     let parts: Vec<&str> = r.splitn(3, '.').collect();
     match parts.as_slice() {
-        ["ansi", key] => ansi.get(key).ok_or(anyhow!("Unknown ansi key {:?}", key)),
+        ["ansi", key] => ansi.get(key),
         ["palette", ramp, idx_str] => {
-            let idx: usize = idx_str.parse().unwrap_or(usize::MAX);
-            palette
-                .get_ramp(ramp)
-                .and_then(|r| r.get(idx))
-                .ok_or(anyhow!("Unknown palette ramp:key {:?}:{:?}", ramp, idx))
+            let idx: usize = idx_str.parse().ok()?;
+            palette.get_ramp(ramp)?.get(idx)
         }
-        ["base16", key] => base16
-            .get(key)
-            .ok_or(anyhow!("Unknown base16 key {:?}", key)),
-        _ => Err(anyhow!("Unknown reference {:?}", parts)),
+        ["base16", key] => base16.get(key),
+        _ => None,
     }
 }
 
@@ -623,4 +614,91 @@ fn parse_base16(
         .collect();
 
     Base16(map)
+}
+
+/// A cycling cursor over resolved [`TcaTheme`] values.
+///
+/// Wraps [`tca_types::ThemeCursor<TcaTheme>`] and adds convenience constructors
+/// for building a cursor from built-in or user-installed themes.
+///
+/// All cursor methods (`peek`, `next`, `prev`, `themes`, `len`, `is_empty`)
+/// delegate to the inner [`tca_types::ThemeCursor`].
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use tca_ratatui::TcaThemeCursor;
+///
+/// let mut cursor = TcaThemeCursor::with_builtins();
+/// let first = cursor.peek().unwrap();
+/// let second = cursor.next().unwrap();
+/// ```
+#[cfg(feature = "fs")]
+pub struct TcaThemeCursor(tca_types::ThemeCursor<TcaTheme>);
+
+#[cfg(feature = "fs")]
+impl TcaThemeCursor {
+    /// Create a cursor from an explicit list of resolved themes.
+    pub fn new(themes: Vec<TcaTheme>) -> Self {
+        Self(tca_types::ThemeCursor::new(themes))
+    }
+
+    /// All built-in themes, resolved to [`TcaTheme`].
+    /// Themes that fail to resolve are silently skipped.
+    pub fn with_builtins() -> Self {
+        let themes = tca_types::BuiltinTheme::iter()
+            .filter_map(|b| TcaTheme::try_from(b.theme()).ok())
+            .collect();
+        Self::new(themes)
+    }
+
+    /// User-installed themes only, resolved to [`TcaTheme`].
+    pub fn with_user_themes() -> Self {
+        let themes = tca_types::all_user_themes()
+            .into_iter()
+            .filter_map(|t| TcaTheme::try_from(t).ok())
+            .collect();
+        Self::new(themes)
+    }
+
+    /// Built-ins + user themes, resolved to [`TcaTheme`].
+    /// User themes with matching names override builtins.
+    pub fn with_all_themes() -> Self {
+        let themes = tca_types::all_themes()
+            .into_iter()
+            .filter_map(|t| TcaTheme::try_from(t).ok())
+            .collect();
+        Self::new(themes)
+    }
+
+    /// Returns the current theme without moving the cursor.
+    pub fn peek(&self) -> Option<&TcaTheme> {
+        self.0.peek()
+    }
+
+    /// Advances the cursor to the next theme (wrapping) and returns it.
+    #[allow(clippy::should_implement_trait)]
+    pub fn next(&mut self) -> Option<&TcaTheme> {
+        self.0.next()
+    }
+
+    /// Retreats the cursor to the previous theme (wrapping) and returns it.
+    pub fn prev(&mut self) -> Option<&TcaTheme> {
+        self.0.prev()
+    }
+
+    /// Returns a slice of all themes in the cursor.
+    pub fn themes(&self) -> &[TcaTheme] {
+        self.0.themes()
+    }
+
+    /// Returns the number of themes.
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Returns `true` if the cursor contains no themes.
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
 }
