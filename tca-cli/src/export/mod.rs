@@ -117,7 +117,11 @@ fn export_alacritty(theme: &Theme) -> Result<String> {
 fn export_vim(theme: &Theme) -> Result<String> {
     let name = theme.meta.name.replace(' ', "");
     let display_name = &theme.meta.name;
-    let background = if theme.meta.dark.unwrap_or(true) { "dark" } else { "light" };
+    let background = if theme.meta.dark.unwrap_or(true) {
+        "dark"
+    } else {
+        "light"
+    };
 
     let mut output = String::new();
     writeln!(output, "\" {}", display_name)?;
@@ -232,7 +236,11 @@ fn export_starship(theme: &Theme) -> Result<String> {
 
 fn export_vscode(theme: &Theme) -> Result<String> {
     let name = &theme.meta.name;
-    let theme_type = if theme.meta.dark.unwrap_or(true) { "dark" } else { "light" };
+    let theme_type = if theme.meta.dark.unwrap_or(true) {
+        "dark"
+    } else {
+        "light"
+    };
 
     let bg = resolve_color(&theme.ui.bg.primary, theme)?;
     let bg_secondary = resolve_color(&theme.ui.bg.secondary, theme)?;
@@ -250,12 +258,27 @@ fn export_vscode(theme: &Theme) -> Result<String> {
     // Editor
     colors.insert("editor.background".into(), serde_json::json!(bg));
     colors.insert("editor.foreground".into(), serde_json::json!(fg));
-    colors.insert("editor.selectionBackground".into(), serde_json::json!(sel_bg));
-    colors.insert("editor.selectionForeground".into(), serde_json::json!(sel_fg));
-    colors.insert("editor.lineHighlightBackground".into(), serde_json::json!(bg_secondary));
+    colors.insert(
+        "editor.selectionBackground".into(),
+        serde_json::json!(sel_bg),
+    );
+    colors.insert(
+        "editor.selectionForeground".into(),
+        serde_json::json!(sel_fg),
+    );
+    colors.insert(
+        "editor.lineHighlightBackground".into(),
+        serde_json::json!(bg_secondary),
+    );
     colors.insert("editorCursor.foreground".into(), serde_json::json!(cursor));
-    colors.insert("editorLineNumber.foreground".into(), serde_json::json!(fg_muted));
-    colors.insert("editorLineNumber.activeForeground".into(), serde_json::json!(fg));
+    colors.insert(
+        "editorLineNumber.foreground".into(),
+        serde_json::json!(fg_muted),
+    );
+    colors.insert(
+        "editorLineNumber.activeForeground".into(),
+        serde_json::json!(fg),
+    );
 
     // Borders and focus
     colors.insert("focusBorder".into(), serde_json::json!(border));
@@ -279,9 +302,15 @@ fn export_vscode(theme: &Theme) -> Result<String> {
     // Tabs
     colors.insert("tab.activeBackground".into(), serde_json::json!(bg));
     colors.insert("tab.activeForeground".into(), serde_json::json!(fg));
-    colors.insert("tab.inactiveBackground".into(), serde_json::json!(bg_secondary));
+    colors.insert(
+        "tab.inactiveBackground".into(),
+        serde_json::json!(bg_secondary),
+    );
     colors.insert("tab.inactiveForeground".into(), serde_json::json!(fg_muted));
-    colors.insert("editorGroupHeader.tabsBackground".into(), serde_json::json!(bg_secondary));
+    colors.insert(
+        "editorGroupHeader.tabsBackground".into(),
+        serde_json::json!(bg_secondary),
+    );
 
     // Panel
     colors.insert("panel.background".into(), serde_json::json!(bg_secondary));
@@ -294,7 +323,10 @@ fn export_vscode(theme: &Theme) -> Result<String> {
     colors.insert("editorError.foreground".into(), serde_json::json!(err));
     colors.insert("editorWarning.foreground".into(), serde_json::json!(warn));
     colors.insert("editorInfo.foreground".into(), serde_json::json!(info));
-    colors.insert("editorLink.activeForeground".into(), serde_json::json!(link));
+    colors.insert(
+        "editorLink.activeForeground".into(),
+        serde_json::json!(link),
+    );
 
     // Terminal ANSI colors
     let terminal_colors = [
@@ -329,8 +361,7 @@ fn export_vscode(theme: &Theme) -> Result<String> {
 }
 
 fn write_iterm_color(output: &mut String, key: &str, hex: &str) -> Result<()> {
-    let (r8, g8, b8) =
-        hex_to_rgb(hex).with_context(|| format!("Invalid hex color: {}", hex))?;
+    let (r8, g8, b8) = hex_to_rgb(hex).with_context(|| format!("Invalid hex color: {}", hex))?;
     let (r, g, b) = (r8 as f64 / 255.0, g8 as f64 / 255.0, b8 as f64 / 255.0);
     writeln!(output, "\t<key>{}</key>", key)?;
     writeln!(output, "\t<dict>")?;
@@ -397,28 +428,68 @@ fn export_tmux(theme: &Theme) -> Result<String> {
     let inactive_border = &theme.ansi.bright_black;
 
     writeln!(output, "# Status bar")?;
-    writeln!(output, "set-option -g status-style \"bg={},fg={}\"", bg_primary, fg_primary)?;
-    writeln!(output, "set-option -g status-left-style \"bg={},fg={}\"", bg_primary, fg_primary)?;
-    writeln!(output, "set-option -g status-right-style \"bg={},fg={}\"", bg_primary, fg_primary)?;
+    writeln!(
+        output,
+        "set-option -g status-style \"bg={},fg={}\"",
+        bg_primary, fg_primary
+    )?;
+    writeln!(
+        output,
+        "set-option -g status-left-style \"bg={},fg={}\"",
+        bg_primary, fg_primary
+    )?;
+    writeln!(
+        output,
+        "set-option -g status-right-style \"bg={},fg={}\"",
+        bg_primary, fg_primary
+    )?;
     writeln!(output)?;
 
     writeln!(output, "# Window status")?;
-    writeln!(output, "set-option -g window-status-style \"bg={},fg={}\"", bg_primary, fg_muted)?;
-    writeln!(output, "set-option -g window-status-current-style \"bg={},fg={}\"", sel_bg, fg_primary)?;
+    writeln!(
+        output,
+        "set-option -g window-status-style \"bg={},fg={}\"",
+        bg_primary, fg_muted
+    )?;
+    writeln!(
+        output,
+        "set-option -g window-status-current-style \"bg={},fg={}\"",
+        sel_bg, fg_primary
+    )?;
     writeln!(output)?;
 
     writeln!(output, "# Pane borders")?;
-    writeln!(output, "set-option -g pane-border-style \"fg={}\"", inactive_border)?;
-    writeln!(output, "set-option -g pane-active-border-style \"fg={}\"", active_border)?;
+    writeln!(
+        output,
+        "set-option -g pane-border-style \"fg={}\"",
+        inactive_border
+    )?;
+    writeln!(
+        output,
+        "set-option -g pane-active-border-style \"fg={}\"",
+        active_border
+    )?;
     writeln!(output)?;
 
     writeln!(output, "# Message style")?;
-    writeln!(output, "set-option -g message-style \"bg={},fg={}\"", sel_bg, fg_primary)?;
-    writeln!(output, "set-option -g message-command-style \"bg={},fg={}\"", bg_primary, fg_primary)?;
+    writeln!(
+        output,
+        "set-option -g message-style \"bg={},fg={}\"",
+        sel_bg, fg_primary
+    )?;
+    writeln!(
+        output,
+        "set-option -g message-command-style \"bg={},fg={}\"",
+        bg_primary, fg_primary
+    )?;
     writeln!(output)?;
 
     writeln!(output, "# Copy mode")?;
-    writeln!(output, "set-window-option -g mode-style \"bg={},fg={}\"", sel_bg, fg_primary)?;
+    writeln!(
+        output,
+        "set-window-option -g mode-style \"bg={},fg={}\"",
+        sel_bg, fg_primary
+    )?;
 
     Ok(output)
 }
@@ -534,7 +605,10 @@ mod tests {
         assert!(out.contains("background #1c1c1c"), "missing background");
         assert!(out.contains("foreground #eeeeec"), "missing foreground");
         assert!(out.contains("cursor #eeeeec"), "missing cursor");
-        assert!(out.contains("selection_background #3465a4"), "missing selection_bg");
+        assert!(
+            out.contains("selection_background #3465a4"),
+            "missing selection_bg"
+        );
     }
 
     #[test]
@@ -553,10 +627,22 @@ mod tests {
     fn test_export_vim_dark() {
         let theme = make_test_theme();
         let out = export_vim(&theme).unwrap();
-        assert!(out.contains("set background=dark"), "missing dark background");
-        assert!(out.contains("let g:colors_name = 'TestTheme'"), "missing colors_name");
-        assert!(out.contains("let g:terminal_color_0 = '#000000'"), "missing terminal color");
-        assert!(out.contains("hi Normal guifg=#eeeeec guibg=#1c1c1c"), "missing Normal highlight");
+        assert!(
+            out.contains("set background=dark"),
+            "missing dark background"
+        );
+        assert!(
+            out.contains("let g:colors_name = 'TestTheme'"),
+            "missing colors_name"
+        );
+        assert!(
+            out.contains("let g:terminal_color_0 = '#000000'"),
+            "missing terminal color"
+        );
+        assert!(
+            out.contains("hi Normal guifg=#eeeeec guibg=#1c1c1c"),
+            "missing Normal highlight"
+        );
     }
 
     #[test]
@@ -564,7 +650,10 @@ mod tests {
         let mut theme = make_test_theme();
         theme.meta.dark = Some(false);
         let out = export_vim(&theme).unwrap();
-        assert!(out.contains("set background=light"), "should be light background");
+        assert!(
+            out.contains("set background=light"),
+            "should be light background"
+        );
     }
 
     #[test]
@@ -573,9 +662,18 @@ mod tests {
         let out = export_helix(&theme).unwrap();
         assert!(out.contains("[ui]"), "missing ui section");
         assert!(out.contains("[palette]"), "missing palette section");
-        assert!(out.contains("background = \"#1c1c1c\""), "missing background");
-        assert!(out.contains("foreground = \"#eeeeec\""), "missing foreground");
-        assert!(out.contains("black = \"#000000\""), "missing black palette entry");
+        assert!(
+            out.contains("background = \"#1c1c1c\""),
+            "missing background"
+        );
+        assert!(
+            out.contains("foreground = \"#eeeeec\""),
+            "missing foreground"
+        );
+        assert!(
+            out.contains("black = \"#000000\""),
+            "missing black palette entry"
+        );
     }
 
     #[test]
@@ -620,8 +718,17 @@ mod tests {
         let theme = make_test_theme();
         let out = export_tmux(&theme).unwrap();
         assert!(out.contains("# TCA Theme: Test Theme"), "missing header");
-        assert!(out.contains("set-option -g status-style"), "missing status-style");
-        assert!(out.contains("set-option -g pane-border-style"), "missing pane-border");
-        assert!(out.contains("set-option -g pane-active-border-style"), "missing active border");
+        assert!(
+            out.contains("set-option -g status-style"),
+            "missing status-style"
+        );
+        assert!(
+            out.contains("set-option -g pane-border-style"),
+            "missing pane-border"
+        );
+        assert!(
+            out.contains("set-option -g pane-active-border-style"),
+            "missing active border"
+        );
     }
 }

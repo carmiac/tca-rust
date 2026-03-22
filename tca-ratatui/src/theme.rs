@@ -186,11 +186,7 @@ impl Base16 {
 
     /// Iterates over all `(key, color)` pairs in sorted key order.
     pub fn entries(&self) -> impl Iterator<Item = (&str, Color)> {
-        let mut pairs: Vec<(&str, Color)> = self
-            .0
-            .iter()
-            .map(|(k, &v)| (k.as_str(), v))
-            .collect();
+        let mut pairs: Vec<(&str, Color)> = self.0.iter().map(|(k, &v)| (k.as_str(), v)).collect();
         pairs.sort_by_key(|(k, _)| *k);
         pairs.into_iter()
     }
