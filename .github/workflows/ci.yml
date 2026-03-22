@@ -29,10 +29,10 @@ jobs:
         run: cargo test --workspace
 
       - name: Build tca-ratatui loader feature
-        run: cargo test -p tca-ratatui --features loader
+        run: cargo test -p tca-ratatui --features fs
 
       - name: Build picker example
-        run: cargo build --example picker -p tca-ratatui --features "loader widgets"
+        run: cargo build --example picker -p tca-ratatui --features "fs widgets"
 
   clippy:
     name: Clippy
