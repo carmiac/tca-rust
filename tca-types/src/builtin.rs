@@ -1,29 +1,42 @@
-#![allow(missing_docs)]
 //! Built in hardcoded themes for tca-rust
-use crate::Theme;
-use strum::{EnumIter, EnumString, IntoStaticStr};
+use crate::theme::Theme;
+use strum::EnumIter;
+use strum::{EnumString, IntoStaticStr};
 
 /// Enum of built in themes.
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, EnumIter, EnumString, IntoStaticStr)]
 #[strum(serialize_all = "kebab-case", ascii_case_insensitive)]
 pub enum BuiltinTheme {
+    /// Catppuccin Mocha — dark, pastel-toned.
     CatppuccinMocha,
+    /// Cyberpunk — high-contrast neon on dark.
     Cyberpunk,
+    /// Dracula — the classic dark purple theme (default).
     #[default]
     Dracula,
+    /// Everforest Dark — muted green forest tones.
     EverforestDark,
+    /// Gruvbox Dark — warm retro earth tones.
     GruvboxDark,
+    /// Mono — minimal monochrome.
     Mono,
+    /// Nord — cool arctic blue palette.
     Nord,
+    /// One Dark — Atom-inspired dark theme.
     OneDark,
+    /// Rosé Pine — soho vibes, muted rose tones.
     RosePine,
+    /// Solarized Light — the classic light theme.
     SolarizedLight,
+    /// Tokyo Night — vibrant dark blues and purples.
     TokyoNight,
 }
 
+/// Built in themes to provide an easy on ramp for users who haven't installed theme files.
 impl BuiltinTheme {
-    pub fn theme(&self) -> Theme {
+    /// Get the actual Theme from the Enum.
+    pub fn theme(self) -> Theme {
         let src = match self {
             BuiltinTheme::CatppuccinMocha => include_str!("themes/catppuccin-mocha.toml"),
             BuiltinTheme::Cyberpunk => include_str!("themes/cyberpunk.toml"),
@@ -41,18 +54,20 @@ impl BuiltinTheme {
         toml::from_str(src).expect("Built in theme TOML is invalid.")
     }
 
-    pub fn default_dark() -> Self {
-        BuiltinTheme::default()
-    }
-    pub fn default_light() -> Self {
+    /// Returns a nice default light Theme.
+    pub fn default_light() -> BuiltinTheme {
         BuiltinTheme::SolarizedLight
+    }
+
+    /// Iterator to get all the built in themes.
+    pub fn iter() -> impl Iterator<Item = BuiltinTheme> {
+        <Self as strum::IntoEnumIterator>::iter()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use strum::IntoEnumIterator;
 
     #[test]
     fn all_builtin_themes_load_without_panic() {

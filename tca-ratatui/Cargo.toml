@@ -15,7 +15,6 @@ exclude = [".gitignore", "codebook.toml"]
 
 [dependencies]
 tca-types = { workspace = true, optional = true }
-tca-loader = { workspace = true, optional = true }
 serde = { workspace = true }
 heck = { workspace = true }
 toml = { workspace = true }
@@ -28,14 +27,14 @@ terminal-colorsaurus = { workspace = true }
 crossterm = { workspace = true }
 
 [features]
-default = ["loader"]
-loader = ["dep:tca-loader", "dep:tca-types"]
+default = ["fs", "widgets"]
+fs = ["dep:tca-types"]
 widgets = []
 
 [[example]]
 name = "basic"
-required-features = ["loader"]
+required-features = ["fs"]
 
 [[example]]
 name = "picker"
-required-features = ["loader", "widgets"]
+required-features = ["fs", "widgets"]

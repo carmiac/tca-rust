@@ -125,7 +125,5 @@ mod tests;
 
 pub use theme::{Ansi, Base16, ColorRamp, Meta, Palette, Semantic, TcaTheme, TcaThemeBuilder, Ui};
 
-pub use theme::load_all_builtin;
-
 #[cfg(feature = "widgets")]
 pub use widgets::ColorPicker;

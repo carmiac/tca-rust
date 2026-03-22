@@ -1,9 +1,9 @@
-#[cfg(feature = "loader")]
+#[cfg(feature = "fs")]
 use anyhow::{Context, Result};
 use ratatui::style::Color;
 use std::collections::HashMap;
-use strum::IntoEnumIterator;
-use tca_types::BuiltinTheme;
+
+use tca_types::{BuiltinTheme, TcaConfig};
 /// Theme metadata.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Meta {
@@ -301,7 +301,7 @@ impl TcaTheme {
     /// 2. Built in themes.
     /// 3. User configured default theme.
     /// 4. Built in default light/dark mode theme based on current mode.
-    #[cfg(feature = "loader")]
+    #[cfg(feature = "fs")]
     pub fn new(name: Option<&str>) -> Self {
         // 1. Try loading by name/path from the themes directory
         name.and_then(|n| tca_loader::load_theme_file(n).ok())
@@ -318,7 +318,7 @@ impl TcaTheme {
             // 3. Try the global config default
             //    (e.g. ~/.config/tca/config.toml has `default_theme = "nord"`)
             .or_else(|| {
-                tca_loader::TcaConfig::load()
+                TcaConfig::load()
                     .mode_aware_theme()
                     .and_then(|n| n.parse::<BuiltinTheme>().ok())
                     .and_then(|b| TcaTheme::try_from(b.theme()).ok())
@@ -335,14 +335,14 @@ impl TcaTheme {
     }
 }
 
-#[cfg(feature = "loader")]
+#[cfg(feature = "fs")]
 impl Default for TcaTheme {
     fn default() -> Self {
         TcaTheme::new(None)
     }
 }
 
-#[cfg(feature = "loader")]
+#[cfg(feature = "fs")]
 /// Load a TcaTheme from a TOML string.
 impl TryFrom<&str> for TcaTheme {
     type Error = anyhow::Error;
@@ -408,15 +408,6 @@ impl TryFrom<tca_types::Theme> for TcaTheme {
             ui,
         })
     }
-}
-
-/// Get a Vec of all built-in themes.
-pub fn load_all_builtin() -> Vec<TcaTheme> {
-    BuiltinTheme::iter()
-        .map(|t| t.theme())
-        .map(TcaTheme::try_from)
-        .filter_map(Result::ok)
-        .collect()
 }
 
 /// Builder for constructing a [`TcaTheme`] programmatically.
@@ -514,7 +505,7 @@ fn hex_to_color(hex: &str) -> Option<Color> {
 /// Resolve a color reference string to a [`Color`].
 ///
 /// Supported formats: `#RRGGBB`, `ansi.<key>`, `palette.<ramp>.<index>`, `base16.<key>`.
-#[cfg(feature = "loader")]
+#[cfg(feature = "fs")]
 fn resolve_ref(r: &str, ansi: &Ansi, palette: &Palette, base16: &Base16) -> Result<Color> {
     use anyhow::anyhow;
 
@@ -541,7 +532,7 @@ fn resolve_ref(r: &str, ansi: &Ansi, palette: &Palette, base16: &Base16) -> Resu
 
 /// Parse a raw [`tca_types::Ansi`] into a resolved [`Ansi`].
 /// Returns an error if any hex color is malformed (spec requires hex-only in `[ansi]`).
-#[cfg(feature = "loader")]
+#[cfg(feature = "fs")]
 fn parse_ansi(raw: &tca_types::Ansi) -> Result<Ansi> {
     let p = |hex: &str| -> Result<Color> {
         hex_to_color(hex).with_context(|| format!("Invalid hex color in [ansi]: {:?}", hex))
@@ -569,7 +560,7 @@ fn parse_ansi(raw: &tca_types::Ansi) -> Result<Ansi> {
 /// Parse a raw [`tca_types::Palette`] into a resolved [`Palette`].
 /// Palette values may be `#RRGGBB` hex or `ansi.<key>` references.
 /// Values that cannot be resolved are silently skipped.
-#[cfg(feature = "loader")]
+#[cfg(feature = "fs")]
 fn parse_palette(raw: Option<&tca_types::Palette>, raw_ansi: &tca_types::Ansi) -> Palette {
     let Some(raw_palette) = raw else {
         return Palette::default();
@@ -600,7 +591,7 @@ fn parse_palette(raw: Option<&tca_types::Palette>, raw_ansi: &tca_types::Ansi) -
 /// Parse a raw [`tca_types::Base16`] into a resolved [`Base16`].
 /// Values may be `#RRGGBB`, `ansi.<key>`, or `palette.<ramp>.<index>`.
 /// Values that cannot be resolved are silently skipped.
-#[cfg(feature = "loader")]
+#[cfg(feature = "fs")]
 fn parse_base16(
     raw: Option<&tca_types::Base16>,
     raw_ansi: &tca_types::Ansi,

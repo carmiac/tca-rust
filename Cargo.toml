@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["tca-types", "tca-loader", "tca", "tca-ratatui"]
+members = ["tca-types", "tca", "tca-ratatui"]
 
 [workspace.package]
 version = "0.3.0"
@@ -13,7 +13,6 @@ homepage = "https://github.com/carmiac/tca-rust"
 [workspace.dependencies]
 # Internal dependencies
 tca-types = { path = "./tca-types", version = "0.3.0" }
-tca-loader = { path = "./tca-loader", version = "0.3.0" }
 
 # External dependencies
 thiserror = "2.0"
