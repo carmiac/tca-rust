@@ -4,8 +4,14 @@
 //! the TCA ecosystem for theme representation and manipulation.
 
 #![warn(missing_docs)]
+#[cfg(feature = "fs")]
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+#[cfg(feature = "fs")]
+use std::path::PathBuf;
+
+use crate::user_themes_path;
 
 /// Errors that can occur when parsing a hex color string.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -337,6 +343,38 @@ impl Theme {
             name.and_then(|n| n.parse::<BuiltinTheme>().ok().map(|b| b.theme()))
                 .unwrap_or_else(|| BuiltinTheme::default().theme())
         }
+    }
+
+    /// Returns the canonical name slug for the theme.
+    ///
+    /// This is the kebab-case version of the theme name.
+    /// e.g. "Tokyo Night" => "tokyo-night"
+    pub fn name_slug(&self) -> String {
+        heck::AsKebabCase(&self.meta.name).to_string()
+    }
+
+    /// Returns the canonical file name for the theme.
+    ///
+    /// This is the kebab-case name + '.toml'
+    /// e.g. "Tokyo Night" => "tokyo-night.toml"
+    pub fn to_filename(&self) -> String {
+        let mut theme_name = self.name_slug();
+        if !theme_name.ends_with(".toml") {
+            theme_name.push_str(".toml");
+        }
+        theme_name
+    }
+
+    /// Returns the canonical file path for the theme.
+    ///
+    /// Note that this is not necessarily the current location of the theme, nor
+    /// does it tell you if the theme is locally installed. It just tells you
+    /// where it should be installed to.
+    #[cfg(feature = "fs")]
+    pub fn to_pathbuf(&self) -> Result<PathBuf> {
+        let mut path = user_themes_path()?;
+        path.push(self.to_filename());
+        Ok(path)
     }
 }
 

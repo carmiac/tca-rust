@@ -20,20 +20,23 @@ pub fn run(
     dir_path: String,
     branch: String,
 ) -> Result<()> {
-    let theme_dir = tca_types::user_themes_path()?;
-
+    // Handle the easy flags.
     if all {
-        let tmp_dir = tempfile::tempdir()?;
-        let repo = fetch_repo(&repo_url, &branch, &tmp_dir)?;
-        download_directory(&repo, &dir_path, &theme_dir).map_err(box_err)?;
-        return Ok(());
+        return download_all_themes(&repo_url, &dir_path, &branch);
     }
     if theme.is_none() || theme.as_ref().unwrap().is_empty() {
         return Err(anyhow!("Must either pass a theme name or --all."));
     }
+
+    // Try to find the given themes.
+    // Search order for each theme is:
+    // 1. Assume it is a path, which may be absolute or relative.
+    //    a. If the path is a directory, copy all of the toml files over.
+    //    b. If the path ends in toml, copy it over.
+    // 2. Remote repository.
+    let theme_dir = tca_types::user_themes_path()?;
     let themes: HashSet<&String> = HashSet::from_iter(theme.as_ref().unwrap());
     let mut found_themes: HashSet<&String> = HashSet::new();
-    // Try to find the theme file(s).
     for path in &themes {
         let theme_path = PathBuf::from(path);
         if theme_path.is_dir() {
@@ -43,7 +46,7 @@ pub fn run(
                 .filter_map(|e| e.ok())
                 .filter(|e| e.path().extension().is_some_and(|ext| ext == "toml"))
             {
-                let src = entry.file_name();
+                let src = entry.path();
                 let dest = theme_dir.join(entry.file_name());
                 println!("Copying {:#?} to {:#?}", src, dest);
                 std::fs::copy(src, dest)?;
@@ -57,15 +60,25 @@ pub fn run(
                     .ok_or_else(|| anyhow!("Can't parse filename."))?,
             );
             println!("Copying {:#?} to {:#?}", theme_path, dest);
-            std::fs::copy(theme_path, dest)?;
-            found_themes.insert(path);
+            if theme_path.exists() && std::fs::copy(theme_path, dest).is_ok() {
+                found_themes.insert(path);
+            }
         }
     }
     let remaining_themes: HashSet<&String> = themes.difference(&found_themes).copied().collect();
     if !remaining_themes.is_empty() {
+        println!("Didn't find all given themes as local files. Checking remote repository...");
         copy_from_repo(remaining_themes, &repo_url, &dir_path, &branch)?;
     }
 
+    Ok(())
+}
+
+pub fn download_all_themes(repo_url: &String, dir_path: &str, branch: &String) -> Result<()> {
+    let theme_dir = tca_types::user_themes_path()?;
+    let tmp_dir = tempfile::tempdir()?;
+    let repo = fetch_repo(repo_url, branch, &tmp_dir)?;
+    download_directory(&repo, dir_path, &theme_dir).map_err(box_err)?;
     Ok(())
 }
 

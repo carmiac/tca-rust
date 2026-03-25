@@ -5,7 +5,18 @@ use strum::{EnumString, IntoStaticStr};
 
 /// Enum of built in themes.
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, EnumIter, EnumString, IntoStaticStr)]
+#[derive(
+    Debug,
+    Default,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    EnumIter,
+    EnumString,
+    IntoStaticStr,
+    serde::Serialize,
+)]
 #[strum(serialize_all = "kebab-case", ascii_case_insensitive)]
 pub enum BuiltinTheme {
     /// Catppuccin Mocha — dark, pastel-toned.

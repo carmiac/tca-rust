@@ -4,8 +4,13 @@ use clap::{Parser, Subcommand};
 mod add;
 mod config;
 mod export;
+mod init;
 mod list;
 mod validate;
+
+pub const REPO: &str = "git@github.com:carmiac/tca-themes.git";
+pub const REPO_DIR: &str = "themes";
+pub const REPO_BRANCH: &str = "main";
 
 #[derive(Parser)]
 #[command(name = "tca")]
@@ -57,14 +62,28 @@ enum Commands {
         #[arg(long)]
         all: bool,
         /// Remote repo URL.
-        #[arg(short, long, default_value = "git@github.com:carmiac/tca-themes.git")]
+        #[arg(short, long, default_value = REPO)]
         repo_url: String,
         /// Theme directory in repo.
-        #[arg(short, long, default_value = "themes/")]
+        #[arg(short, long, default_value = REPO_DIR)]
         dir_path: String,
         /// Repo branch.
-        #[arg(short, long, default_value = "main")]
+        #[arg(short, long, default_value = REPO_BRANCH)]
         branch: String,
+    },
+    /// Create a default config file and add some themes as theme files.
+    ///
+    /// By default installs all of the built in themes. This can be changed with either '--all' or '--none'.
+    Init {
+        /// Download all themes from the default theme repository.
+        #[arg(long)]
+        all: bool,
+        /// Don't install any themes.
+        #[arg(long)]
+        none: bool,
+        /// Overwrite existing files.
+        #[arg(long)]
+        force: bool,
     },
 }
 
@@ -106,6 +125,7 @@ fn main() -> Result<()> {
             dir_path,
             branch,
         } => add::run(&theme, all, repo_url, dir_path, branch)?,
+        Commands::Init { all, none, force } => init::run(all, none, force)?,
     }
 
     Ok(())
