@@ -19,7 +19,7 @@ pub enum HexColorError {
 }
 
 /// A complete TCA theme definition.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Theme {
     /// Theme metadata. Serde key is `theme` to match the TOML section name.
     #[serde(rename = "theme")]
@@ -43,9 +43,6 @@ pub struct Theme {
 pub struct Meta {
     /// Human-readable theme name.
     pub name: String,
-    /// URL-safe identifier for the theme.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub slug: Option<String>,
     /// Theme author name or contact.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub author: Option<String>,
@@ -343,6 +340,25 @@ impl Theme {
     }
 }
 
+impl PartialEq for Theme {
+    fn eq(&self, other: &Self) -> bool {
+        self.meta.name == other.meta.name
+    }
+}
+impl Eq for Theme {}
+
+impl PartialOrd for Theme {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Theme {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.meta.name.cmp(&(other.meta.name))
+    }
+}
+
 /// Convert a hex color string to RGB components.
 ///
 /// Accepts colors in format `#RRGGBB` or `RRGGBB`.
@@ -383,7 +399,6 @@ mod tests {
         Theme {
             meta: Meta {
                 name: "Test Theme".to_string(),
-                slug: Some("test".to_string()),
                 author: None,
                 version: None,
                 description: None,

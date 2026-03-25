@@ -1,6 +1,7 @@
 //! Read and write user TCA preferences.
 
 use anyhow::Result;
+use core::fmt;
 use etcetera::{choose_app_strategy, AppStrategy, AppStrategyArgs};
 use std::fs;
 use std::path::PathBuf;
@@ -63,5 +64,23 @@ impl TcaConfig {
         let content = toml::to_string(self)?;
         fs::write(&path, content)?;
         Ok(())
+    }
+}
+
+impl fmt::Display for TcaConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "default: {:?}\ndefault_dark: {:?}\ndefault_light: {:?}",
+            self.tca.default_theme.clone().unwrap_or("None".to_string()),
+            self.tca
+                .default_dark_theme
+                .clone()
+                .unwrap_or("None".to_string()),
+            self.tca
+                .default_light_theme
+                .clone()
+                .unwrap_or("None".to_string()),
+        )
     }
 }

@@ -18,9 +18,10 @@ pub struct ThemeCursor<T> {
     index: usize,
 }
 
-impl<T> ThemeCursor<T> {
+impl<T: std::cmp::Ord> ThemeCursor<T> {
     /// Create a cursor from an explicit list. The cursor starts at the first theme.
-    pub fn new(themes: Vec<T>) -> Self {
+    pub fn new(mut themes: Vec<T>) -> Self {
+        themes.sort();
         Self { index: 0, themes }
     }
 
@@ -104,7 +105,6 @@ mod tests {
         Theme {
             meta: Meta {
                 name: name.to_string(),
-                slug: None,
                 author: None,
                 version: None,
                 description: None,

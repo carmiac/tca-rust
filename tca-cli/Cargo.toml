@@ -25,3 +25,7 @@ clap = { workspace = true }
 anyhow = { workspace = true }
 colored = { workspace = true }
 toml = { workspace = true }
+gix = { version = "0.81.0", features = ["blocking-network-client"] }
+tempfile = "3.27.0"
+walkdir = "2.5.0"
+heck.workspace = true

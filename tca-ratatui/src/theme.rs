@@ -11,8 +11,6 @@ use tca_types::BuiltinTheme;
 pub struct Meta {
     /// Human-readable theme name.
     pub name: String,
-    /// URL-safe identifier for the theme.
-    pub slug: Option<String>,
     /// Theme author name or contact.
     pub author: Option<String>,
     /// Semantic version string (e.g. `"1.0.0"`).
@@ -27,7 +25,6 @@ impl Default for Meta {
     fn default() -> Self {
         Self {
             name: "Unnamed Theme".to_string(),
-            slug: None,
             author: None,
             version: None,
             description: None,
@@ -278,7 +275,7 @@ impl Default for Ui {
 ///
 /// All color references have been resolved to concrete [`Color`] values.
 /// Construct via [`TcaThemeBuilder`] or the `from_file`/`from_toml` methods.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct TcaTheme {
     /// Theme metadata (name, author, version, etc.).
     pub meta: Meta,
@@ -384,7 +381,6 @@ impl TryFrom<tca_types::Theme> for TcaTheme {
 
         let meta = Meta {
             name: raw.meta.name,
-            slug: raw.meta.slug,
             author: raw.meta.author,
             version: raw.meta.version,
             description: raw.meta.description,
@@ -399,6 +395,25 @@ impl TryFrom<tca_types::Theme> for TcaTheme {
             semantic,
             ui,
         })
+    }
+}
+
+impl PartialEq for TcaTheme {
+    fn eq(&self, other: &Self) -> bool {
+        self.meta.name == other.meta.name
+    }
+}
+impl Eq for TcaTheme {}
+
+impl PartialOrd for TcaTheme {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for TcaTheme {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.meta.name.cmp(&(other.meta.name))
     }
 }
 
