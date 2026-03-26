@@ -494,8 +494,8 @@ fn export_tmux(theme: &Theme) -> Result<String> {
     Ok(output)
 }
 
-pub fn run(file_path: &str, format: &str, output: Option<&str>) -> Result<()> {
-    let content = tca_types::load_theme_file(file_path)?;
+pub fn run(theme: &str, format: &str, output: Option<&str>) -> Result<()> {
+    let content = tca_types::load_theme_file(theme)?;
 
     let theme: Theme = toml::from_str(&content).context("Failed to parse theme file as TOML")?;
 
@@ -535,7 +535,6 @@ mod tests {
         Theme {
             meta: Meta {
                 name: "Test Theme".to_string(),
-                slug: None,
                 author: Some("Test Author".to_string()),
                 version: None,
                 description: None,

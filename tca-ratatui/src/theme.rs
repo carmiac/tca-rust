@@ -2,6 +2,8 @@
 use anyhow::{Context, Result};
 use ratatui::style::Color;
 use std::collections::HashMap;
+#[cfg(feature = "fs")]
+use std::path::PathBuf;
 
 #[cfg(feature = "fs")]
 use tca_types::BuiltinTheme;
@@ -11,8 +13,6 @@ use tca_types::BuiltinTheme;
 pub struct Meta {
     /// Human-readable theme name.
     pub name: String,
-    /// URL-safe identifier for the theme.
-    pub slug: Option<String>,
     /// Theme author name or contact.
     pub author: Option<String>,
     /// Semantic version string (e.g. `"1.0.0"`).
@@ -27,7 +27,6 @@ impl Default for Meta {
     fn default() -> Self {
         Self {
             name: "Unnamed Theme".to_string(),
-            slug: None,
             author: None,
             version: None,
             description: None,
@@ -278,7 +277,7 @@ impl Default for Ui {
 ///
 /// All color references have been resolved to concrete [`Color`] values.
 /// Construct via [`TcaThemeBuilder`] or the `from_file`/`from_toml` methods.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct TcaTheme {
     /// Theme metadata (name, author, version, etc.).
     pub meta: Meta,
@@ -319,6 +318,39 @@ impl TcaTheme {
             };
             TcaTheme::try_from(builtin.theme()).expect("hardcoded default must be valid")
         })
+    }
+    /// Returns the canonical name slug for the theme.
+    ///
+    /// This is the kebab-case version of the theme name.
+    /// e.g. "Tokyo Night" => "tokyo-night"
+    pub fn name_slug(&self) -> String {
+        heck::AsKebabCase(&self.meta.name).to_string()
+    }
+
+    /// Returns the canonical file name for the theme.
+    ///
+    /// This is the kebab-case name + '.toml'
+    /// e.g. "Tokyo Night" => "tokyo-night.toml"
+    pub fn to_filename(&self) -> String {
+        let mut theme_name = self.name_slug();
+        if !theme_name.ends_with(".toml") {
+            theme_name.push_str(".toml");
+        }
+        theme_name
+    }
+
+    /// Returns the canonical file path for the theme.
+    ///
+    /// Note that this is not necessarily the current location of the theme, nor
+    /// does it tell you if the theme is locally installed. It just tells you
+    /// where it should be installed to.
+    #[cfg(feature = "fs")]
+    pub fn to_pathbuf(&self) -> Result<PathBuf> {
+        use tca_types::user_themes_path;
+
+        let mut path = user_themes_path()?;
+        path.push(self.to_filename());
+        Ok(path)
     }
 }
 
@@ -384,7 +416,6 @@ impl TryFrom<tca_types::Theme> for TcaTheme {
 
         let meta = Meta {
             name: raw.meta.name,
-            slug: raw.meta.slug,
             author: raw.meta.author,
             version: raw.meta.version,
             description: raw.meta.description,
@@ -399,6 +430,25 @@ impl TryFrom<tca_types::Theme> for TcaTheme {
             semantic,
             ui,
         })
+    }
+}
+
+impl PartialEq for TcaTheme {
+    fn eq(&self, other: &Self) -> bool {
+        self.name_slug() == other.name_slug()
+    }
+}
+impl Eq for TcaTheme {}
+
+impl PartialOrd for TcaTheme {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for TcaTheme {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.name_slug().cmp(&other.name_slug())
     }
 }
 
@@ -634,37 +684,36 @@ pub struct TcaThemeCursor(tca_types::ThemeCursor<TcaTheme>);
 
 #[cfg(feature = "fs")]
 impl TcaThemeCursor {
-    /// Create a cursor from an explicit list of resolved themes.
-    pub fn new(themes: Vec<TcaTheme>) -> Self {
+    /// Create a cursor from any iterable of resolved themes. The cursor starts at the first theme.
+    pub fn new(themes: impl IntoIterator<Item = TcaTheme>) -> Self {
         Self(tca_types::ThemeCursor::new(themes))
     }
 
     /// All built-in themes, resolved to [`TcaTheme`].
     /// Themes that fail to resolve are silently skipped.
     pub fn with_builtins() -> Self {
-        let themes = tca_types::BuiltinTheme::iter()
-            .filter_map(|b| TcaTheme::try_from(b.theme()).ok())
-            .collect();
-        Self::new(themes)
+        Self::new(
+            tca_types::BuiltinTheme::iter().filter_map(|b| TcaTheme::try_from(b.theme()).ok()),
+        )
     }
 
     /// User-installed themes only, resolved to [`TcaTheme`].
     pub fn with_user_themes() -> Self {
-        let themes = tca_types::all_user_themes()
-            .into_iter()
-            .filter_map(|t| TcaTheme::try_from(t).ok())
-            .collect();
-        Self::new(themes)
+        Self::new(
+            tca_types::all_user_themes()
+                .into_iter()
+                .filter_map(|t| TcaTheme::try_from(t).ok()),
+        )
     }
 
     /// Built-ins + user themes, resolved to [`TcaTheme`].
     /// User themes with matching names override builtins.
     pub fn with_all_themes() -> Self {
-        let themes = tca_types::all_themes()
-            .into_iter()
-            .filter_map(|t| TcaTheme::try_from(t).ok())
-            .collect();
-        Self::new(themes)
+        Self::new(
+            tca_types::all_themes()
+                .into_iter()
+                .filter_map(|t| TcaTheme::try_from(t).ok()),
+        )
     }
 
     /// Returns the current theme without moving the cursor.
@@ -696,5 +745,15 @@ impl TcaThemeCursor {
     /// Returns `true` if the cursor contains no themes.
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
+    }
+
+    /// Moves the cursor to the theme matching `name` (slug-insensitive) and returns it.
+    ///
+    /// Accepts fuzzy names: "Nord Dark", "nord-dark", and "nordDark" all match the same theme.
+    /// Returns `None` if no matching theme is found.
+    pub fn set_current(&mut self, name: &str) -> Option<&TcaTheme> {
+        let slug = heck::AsKebabCase(name).to_string();
+        let idx = self.0.themes().iter().position(|t| t.name_slug() == slug)?;
+        self.0.set_index(idx)
     }
 }

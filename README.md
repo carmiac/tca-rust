@@ -1,5 +1,12 @@
 # TCA Rust
 
+[![CI](https://github.com/carmiac/tca-rust/actions/workflows/ci.yml/badge.svg)](https://github.com/carmiac/tca-rust/actions)
+[![tca-types on crates.io](https://img.shields.io/crates/v/tca-types?label=tca-types)](https://crates.io/crates/tca-types)
+[![tca-ratatui on crates.io](https://img.shields.io/crates/v/tca-ratatui?label=tca-ratatui)](https://crates.io/crates/tca-ratatui)
+[![tca-cli on crates.io](https://img.shields.io/crates/v/tca-cli?label=tca-cli)](https://crates.io/crates/tca-cli)
+[![docs.rs](https://img.shields.io/docsrs/tca-types?label=docs)](https://docs.rs/tca-types)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
 Terminal Colors Architecture (TCA) for Rust: consistent, user-configurable theming for terminal applications.
 
 ## For Developers

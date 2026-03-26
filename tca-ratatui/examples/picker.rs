@@ -88,8 +88,7 @@ fn main() -> anyhow::Result<()> {
         Some(dir) => TcaThemeCursor::new(
             tca_types::all_from_dir(dir)
                 .into_iter()
-                .map(|t| TcaTheme::try_from(t).unwrap_or_default())
-                .collect(),
+                .map(|t| TcaTheme::try_from(t).unwrap_or_default()),
         ),
         None => {
             if builtin_flag {

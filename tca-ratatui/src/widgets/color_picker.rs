@@ -25,6 +25,7 @@ use ratatui::{
 /// frame.render_widget(picker, frame.area());
 /// # }
 /// ```
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ColorPicker<'a> {
     theme: &'a TcaTheme,
     title: Option<String>,

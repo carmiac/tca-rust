@@ -4,8 +4,14 @@
 //! the TCA ecosystem for theme representation and manipulation.
 
 #![warn(missing_docs)]
+#[cfg(feature = "fs")]
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+#[cfg(feature = "fs")]
+use std::path::PathBuf;
+
+use crate::user_themes_path;
 
 /// Errors that can occur when parsing a hex color string.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -19,7 +25,7 @@ pub enum HexColorError {
 }
 
 /// A complete TCA theme definition.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Theme {
     /// Theme metadata. Serde key is `theme` to match the TOML section name.
     #[serde(rename = "theme")]
@@ -43,9 +49,6 @@ pub struct Theme {
 pub struct Meta {
     /// Human-readable theme name.
     pub name: String,
-    /// URL-safe identifier for the theme.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub slug: Option<String>,
     /// Theme author name or contact.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub author: Option<String>,
@@ -341,6 +344,57 @@ impl Theme {
                 .unwrap_or_else(|| BuiltinTheme::default().theme())
         }
     }
+
+    /// Returns the canonical name slug for the theme.
+    ///
+    /// This is the kebab-case version of the theme name.
+    /// e.g. "Tokyo Night" => "tokyo-night"
+    pub fn name_slug(&self) -> String {
+        heck::AsKebabCase(&self.meta.name).to_string()
+    }
+
+    /// Returns the canonical file name for the theme.
+    ///
+    /// This is the kebab-case name + '.toml'
+    /// e.g. "Tokyo Night" => "tokyo-night.toml"
+    pub fn to_filename(&self) -> String {
+        let mut theme_name = self.name_slug();
+        if !theme_name.ends_with(".toml") {
+            theme_name.push_str(".toml");
+        }
+        theme_name
+    }
+
+    /// Returns the canonical file path for the theme.
+    ///
+    /// Note that this is not necessarily the current location of the theme, nor
+    /// does it tell you if the theme is locally installed. It just tells you
+    /// where it should be installed to.
+    #[cfg(feature = "fs")]
+    pub fn to_pathbuf(&self) -> Result<PathBuf> {
+        let mut path = user_themes_path()?;
+        path.push(self.to_filename());
+        Ok(path)
+    }
+}
+
+impl PartialEq for Theme {
+    fn eq(&self, other: &Self) -> bool {
+        self.name_slug() == other.name_slug()
+    }
+}
+impl Eq for Theme {}
+
+impl PartialOrd for Theme {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Theme {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.name_slug().cmp(&(other.name_slug()))
+    }
 }
 
 /// Convert a hex color string to RGB components.
@@ -383,7 +437,6 @@ mod tests {
         Theme {
             meta: Meta {
                 name: "Test Theme".to_string(),
-                slug: Some("test".to_string()),
                 author: None,
                 version: None,
                 description: None,

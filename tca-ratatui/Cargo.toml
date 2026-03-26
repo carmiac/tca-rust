@@ -20,6 +20,7 @@ toml = { workspace = true, optional = true }
 ratatui = { workspace = true }
 anyhow = { workspace = true }
 terminal-colorsaurus = { workspace = true, optional = true }
+heck.workspace = true
 
 [dev-dependencies]
 crossterm = { workspace = true }

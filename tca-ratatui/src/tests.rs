@@ -184,7 +184,6 @@ mod loader_tests {
         r##"
 [theme]
 name = "Nord Dark"
-slug = "nord-dark"
 author = "TCA Project"
 version = "1.0.0"
 dark = true
@@ -252,7 +251,6 @@ fg = "palette.neutral.4"
     fn test_load_from_toml_meta() {
         let theme = TcaTheme::try_from(nord_toml()).unwrap();
         assert_eq!(theme.meta.name, "Nord Dark");
-        assert_eq!(theme.meta.slug.as_deref(), Some("nord-dark"));
         assert_eq!(theme.meta.dark, Some(true));
     }
 

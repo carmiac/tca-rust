@@ -13,14 +13,16 @@ use crate::{BuiltinTheme, Theme};
 /// - [`ThemeCursor<tca_types::Theme>`] — raw themes; see [`ThemeCursor::with_builtins`] etc.
 /// - [`tca_ratatui::TcaThemeCursor`] — resolved Ratatui themes; convenience constructors
 ///   are available via `tca_ratatui`.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ThemeCursor<T> {
     themes: Vec<T>,
     index: usize,
 }
 
 impl<T> ThemeCursor<T> {
-    /// Create a cursor from an explicit list. The cursor starts at the first theme.
-    pub fn new(themes: Vec<T>) -> Self {
+    /// Create a cursor from any iterable of themes. The cursor starts at the first theme.
+    pub fn new(themes: impl IntoIterator<Item = T>) -> Self {
+        let themes = themes.into_iter().collect();
         Self { index: 0, themes }
     }
 
@@ -70,14 +72,25 @@ impl<T> ThemeCursor<T> {
     pub fn is_empty(&self) -> bool {
         self.themes.is_empty()
     }
+
+    /// Moves the cursor to `index` and returns the theme at that position.
+    ///
+    /// Returns `None` if `index` is out of bounds.
+    pub fn set_index(&mut self, index: usize) -> Option<&T> {
+        if index < self.themes.len() {
+            self.index = index;
+            self.themes.get(index)
+        } else {
+            None
+        }
+    }
 }
 
 /// Convenience constructors for [`ThemeCursor<Theme>`].
 impl ThemeCursor<Theme> {
     /// All built-in themes.
     pub fn with_builtins() -> Self {
-        let themes = BuiltinTheme::iter().map(|b| b.theme()).collect();
-        ThemeCursor::new(themes)
+        ThemeCursor::new(BuiltinTheme::iter().map(|b| b.theme()))
     }
 
     /// User-installed themes only.
@@ -93,6 +106,16 @@ impl ThemeCursor<Theme> {
         use crate::all_themes;
         ThemeCursor::new(all_themes())
     }
+
+    /// Moves the cursor to the theme matching `name` (slug-insensitive) and returns it.
+    ///
+    /// Accepts fuzzy names: "Nord Dark", "nord-dark", and "nordDark" all match the same theme.
+    /// Returns `None` if no matching theme is found.
+    pub fn set_current(&mut self, name: &str) -> Option<&Theme> {
+        let slug = heck::AsKebabCase(name).to_string();
+        let idx = self.themes.iter().position(|t| t.name_slug() == slug)?;
+        self.set_index(idx)
+    }
 }
 
 #[cfg(test)]
@@ -104,7 +127,6 @@ mod tests {
         Theme {
             meta: Meta {
                 name: name.to_string(),
-                slug: None,
                 author: None,
                 version: None,
                 description: None,
@@ -165,7 +187,7 @@ mod tests {
     }
 
     fn cursor_with_names(names: &[&str]) -> ThemeCursor<Theme> {
-        ThemeCursor::new(names.iter().map(|n| make_theme(n)).collect())
+        ThemeCursor::new(names.iter().map(|n| make_theme(n)))
     }
 
     fn name(t: Option<&Theme>) -> &str {

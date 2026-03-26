@@ -65,7 +65,7 @@ pub fn all_user_themes() -> Vec<Theme> {
     all_from_dir(themes_dir.to_str().unwrap())
 }
 
-/// Get a map of all available themes.
+/// Get a vec of all available themes.
 pub fn all_themes() -> Vec<Theme> {
     #[cfg(feature = "fs")]
     {
