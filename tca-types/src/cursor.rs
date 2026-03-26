@@ -13,6 +13,7 @@ use crate::{BuiltinTheme, Theme};
 /// - [`ThemeCursor<tca_types::Theme>`] — raw themes; see [`ThemeCursor::with_builtins`] etc.
 /// - [`tca_ratatui::TcaThemeCursor`] — resolved Ratatui themes; convenience constructors
 ///   are available via `tca_ratatui`.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ThemeCursor<T> {
     themes: Vec<T>,
     index: usize,
@@ -21,6 +22,7 @@ pub struct ThemeCursor<T> {
 impl<T: std::cmp::Ord> ThemeCursor<T> {
     /// Create a cursor from an explicit list. The cursor starts at the first theme.
     pub fn new(mut themes: Vec<T>) -> Self {
+        todo!("Make accept any iterable.")
         themes.sort();
         Self { index: 0, themes }
     }
@@ -70,6 +72,14 @@ impl<T: std::cmp::Ord> ThemeCursor<T> {
     /// Returns `true` if the cursor contains no themes.
     pub fn is_empty(&self) -> bool {
         self.themes.is_empty()
+    }
+
+    /// Sets the current theme to the given name and returns it.
+    ///
+    /// Returns None if the name is not found.
+    pub fn set_current(&self, &str) {
+        todo!()
+        
     }
 }
 

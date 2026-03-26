@@ -380,7 +380,7 @@ impl Theme {
 
 impl PartialEq for Theme {
     fn eq(&self, other: &Self) -> bool {
-        self.meta.name == other.meta.name
+        self.name_slug() == other.name_slug()
     }
 }
 impl Eq for Theme {}
@@ -393,7 +393,7 @@ impl PartialOrd for Theme {
 
 impl Ord for Theme {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.meta.name.cmp(&(other.meta.name))
+        self.name_slug().cmp(&(other.name_slug()))
     }
 }
 
