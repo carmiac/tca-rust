@@ -119,8 +119,8 @@ fn copy_from_repo(
         let filename = entry.filename().to_str()?;
         let dest_path = theme_dir.join(filename);
 
-        if (entry.mode().kind() == EntryKind::Blob)
-            | (entry.mode().kind() == EntryKind::BlobExecutable)
+        if ((entry.mode().kind() == EntryKind::Blob)
+            || (entry.mode().kind() == EntryKind::BlobExecutable))
             && theme_names.contains(filename)
         {
             let blob = entry.object()?.into_blob();

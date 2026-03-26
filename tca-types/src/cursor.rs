@@ -19,11 +19,10 @@ pub struct ThemeCursor<T> {
     index: usize,
 }
 
-impl<T: std::cmp::Ord> ThemeCursor<T> {
-    /// Create a cursor from an explicit list. The cursor starts at the first theme.
-    pub fn new(mut themes: Vec<T>) -> Self {
-        todo!("Make accept any iterable.")
-        themes.sort();
+impl<T> ThemeCursor<T> {
+    /// Create a cursor from any iterable of themes. The cursor starts at the first theme.
+    pub fn new(themes: impl IntoIterator<Item = T>) -> Self {
+        let themes = themes.into_iter().collect();
         Self { index: 0, themes }
     }
 
@@ -74,12 +73,16 @@ impl<T: std::cmp::Ord> ThemeCursor<T> {
         self.themes.is_empty()
     }
 
-    /// Sets the current theme to the given name and returns it.
+    /// Moves the cursor to `index` and returns the theme at that position.
     ///
-    /// Returns None if the name is not found.
-    pub fn set_current(&self, &str) {
-        todo!()
-        
+    /// Returns `None` if `index` is out of bounds.
+    pub fn set_index(&mut self, index: usize) -> Option<&T> {
+        if index < self.themes.len() {
+            self.index = index;
+            self.themes.get(index)
+        } else {
+            None
+        }
     }
 }
 
@@ -87,8 +90,7 @@ impl<T: std::cmp::Ord> ThemeCursor<T> {
 impl ThemeCursor<Theme> {
     /// All built-in themes.
     pub fn with_builtins() -> Self {
-        let themes = BuiltinTheme::iter().map(|b| b.theme()).collect();
-        ThemeCursor::new(themes)
+        ThemeCursor::new(BuiltinTheme::iter().map(|b| b.theme()))
     }
 
     /// User-installed themes only.
@@ -103,6 +105,16 @@ impl ThemeCursor<Theme> {
     pub fn with_all_themes() -> Self {
         use crate::all_themes;
         ThemeCursor::new(all_themes())
+    }
+
+    /// Moves the cursor to the theme matching `name` (slug-insensitive) and returns it.
+    ///
+    /// Accepts fuzzy names: "Nord Dark", "nord-dark", and "nordDark" all match the same theme.
+    /// Returns `None` if no matching theme is found.
+    pub fn set_current(&mut self, name: &str) -> Option<&Theme> {
+        let slug = heck::AsKebabCase(name).to_string();
+        let idx = self.themes.iter().position(|t| t.name_slug() == slug)?;
+        self.set_index(idx)
     }
 }
 
@@ -175,7 +187,7 @@ mod tests {
     }
 
     fn cursor_with_names(names: &[&str]) -> ThemeCursor<Theme> {
-        ThemeCursor::new(names.iter().map(|n| make_theme(n)).collect())
+        ThemeCursor::new(names.iter().map(|n| make_theme(n)))
     }
 
     fn name(t: Option<&Theme>) -> &str {

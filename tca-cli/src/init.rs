@@ -1,10 +1,10 @@
 use anyhow::Result;
 use std::fs;
 
-use crate::{add::download_all_themes, REPO, REPO_DIR};
+use crate::{add::download_all_themes, REPO, REPO_BRANCH, REPO_DIR};
 
 pub fn run(all: bool, none: bool, force: bool) -> Result<()> {
-    if force | !tca_types::TcaConfig::path()?.exists() {
+    if force || !tca_types::TcaConfig::path()?.exists() {
         println!("Writing default config...");
         let config = tca_types::TcaConfig::default();
         config.store()?;
@@ -23,7 +23,7 @@ pub fn run(all: bool, none: bool, force: bool) -> Result<()> {
             fs::write(&path, content)?;
         }
         if all {
-            download_all_themes(&REPO.to_string(), REPO_DIR, &REPO_DIR.to_string())?
+            download_all_themes(&REPO.to_string(), REPO_DIR, &REPO_BRANCH.to_string())?
         }
     }
     Ok(())

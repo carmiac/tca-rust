@@ -6,6 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.5.0]
+
+### Added
+
+- `tca add` - install themes from local files, directories, or by downloading from a remote git repository by name (fuzzy matching supported)
+- `tca config` - show or set user configuration values
+- `tca init` - create a default config file and install built-in themes as TOML files
+- `Theme::to_pathbuf()` and `Theme::to_filename()` in `tca-types` - derive a theme's canonical install path from its name
+- `ThemeCursor::set_index()` — move the cursor to an arbitrary index.
+- `ThemeCursor<Theme>::set_current()` — move the cursor to a theme by name (slug-insensitive: "Nord Dark", "nord-dark", "nordDark" all match).
+- `TcaThemeCursor::set_current()` — same slug-insensitive name lookup for the ratatui cursor.
+- `PartialOrd` / `Ord` for `TcaTheme` in `tca-ratatui`, ordering by name slug.
+
+### Changed
+
+- `ThemeCursor::new()` now accepts `impl IntoIterator<Item = T>` instead of `Vec<T>`, removing the `T: Ord` requirement from the generic impl block.
+
 ## [0.4.0]
 
 ### Added
@@ -50,7 +67,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Initial Release
 
-[Unreleased]: https://github.com/carmiac/tca-rust/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/carmiac/tca-rust/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/carmiac/tca-rust/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/carmiac/tca-rust/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/carmiac/tca-rust/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/carmiac/tca-rust/compare/v0.1.0...v0.2.0

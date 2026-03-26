@@ -448,7 +448,7 @@ impl PartialOrd for TcaTheme {
 
 impl Ord for TcaTheme {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.name_slug().cmp(&(&other.name_slug()))
+        self.name_slug().cmp(&other.name_slug())
     }
 }
 
@@ -684,38 +684,37 @@ pub struct TcaThemeCursor(tca_types::ThemeCursor<TcaTheme>);
 
 #[cfg(feature = "fs")]
 impl TcaThemeCursor {
-    /// Create a cursor from an explicit list of resolved themes.
-    pub fn new(themes: Vec<TcaTheme>) -> Self {
-        todo!("Make accept any iterable.")
+    /// Create a cursor from any iterable of resolved themes. The cursor starts at the first theme.
+    pub fn new(themes: impl IntoIterator<Item = TcaTheme>) -> Self {
         Self(tca_types::ThemeCursor::new(themes))
     }
 
     /// All built-in themes, resolved to [`TcaTheme`].
     /// Themes that fail to resolve are silently skipped.
     pub fn with_builtins() -> Self {
-        let themes = tca_types::BuiltinTheme::iter()
-            .filter_map(|b| TcaTheme::try_from(b.theme()).ok())
-            .collect();
-        Self::new(themes)
+        Self::new(
+            tca_types::BuiltinTheme::iter()
+                .filter_map(|b| TcaTheme::try_from(b.theme()).ok()),
+        )
     }
 
     /// User-installed themes only, resolved to [`TcaTheme`].
     pub fn with_user_themes() -> Self {
-        let themes = tca_types::all_user_themes()
-            .into_iter()
-            .filter_map(|t| TcaTheme::try_from(t).ok())
-            .collect();
-        Self::new(themes)
+        Self::new(
+            tca_types::all_user_themes()
+                .into_iter()
+                .filter_map(|t| TcaTheme::try_from(t).ok()),
+        )
     }
 
     /// Built-ins + user themes, resolved to [`TcaTheme`].
     /// User themes with matching names override builtins.
     pub fn with_all_themes() -> Self {
-        let themes = tca_types::all_themes()
-            .into_iter()
-            .filter_map(|t| TcaTheme::try_from(t).ok())
-            .collect();
-        Self::new(themes)
+        Self::new(
+            tca_types::all_themes()
+                .into_iter()
+                .filter_map(|t| TcaTheme::try_from(t).ok()),
+        )
     }
 
     /// Returns the current theme without moving the cursor.
@@ -749,11 +748,13 @@ impl TcaThemeCursor {
         self.0.is_empty()
     }
 
-    /// Sets the current theme to the given name and returns it.
+    /// Moves the cursor to the theme matching `name` (slug-insensitive) and returns it.
     ///
-    /// Returns None if the name is not found.
-    pub fn set_current(&self, &str) {
-        todo!()
-        
+    /// Accepts fuzzy names: "Nord Dark", "nord-dark", and "nordDark" all match the same theme.
+    /// Returns `None` if no matching theme is found.
+    pub fn set_current(&mut self, name: &str) -> Option<&TcaTheme> {
+        let slug = heck::AsKebabCase(name).to_string();
+        let idx = self.0.themes().iter().position(|t| t.name_slug() == slug)?;
+        self.0.set_index(idx)
     }
 }

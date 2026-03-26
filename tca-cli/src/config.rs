@@ -15,11 +15,14 @@ pub fn run(cmd: &Option<ConfigCommand>) -> Result<()> {
                 "default" => config.tca.default_theme = Some(theme.to_string()),
                 "default_dark" => config.tca.default_dark_theme = Some(theme.to_string()),
                 "default_light" => config.tca.default_light_theme = Some(theme.to_string()),
-                _ => eprintln!("Unknown key: '{}'", key),
+                _ => {
+                    return Err(anyhow::anyhow!(
+                        "Unknown key: '{}'. Valid keys: default, default_dark, default_light",
+                        key
+                    ))
+                }
             }
-            if let Err(err) = config.store() {
-                eprintln!("Couldn't save config. err: {}", err);
-            }
+            config.store()?;
         }
     }
 
