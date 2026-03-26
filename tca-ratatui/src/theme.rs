@@ -693,8 +693,7 @@ impl TcaThemeCursor {
     /// Themes that fail to resolve are silently skipped.
     pub fn with_builtins() -> Self {
         Self::new(
-            tca_types::BuiltinTheme::iter()
-                .filter_map(|b| TcaTheme::try_from(b.theme()).ok()),
+            tca_types::BuiltinTheme::iter().filter_map(|b| TcaTheme::try_from(b.theme()).ok()),
         )
     }
 
