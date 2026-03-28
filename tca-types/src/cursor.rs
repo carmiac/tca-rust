@@ -90,21 +90,27 @@ impl<T> ThemeCursor<T> {
 impl ThemeCursor<Theme> {
     /// All built-in themes.
     pub fn with_builtins() -> Self {
-        ThemeCursor::new(BuiltinTheme::iter().map(|b| b.theme()))
+        let mut themes: Vec<Theme> = BuiltinTheme::iter().map(|b| b.theme()).collect();
+        themes.sort();
+        ThemeCursor::new(themes)
     }
 
     /// User-installed themes only.
     #[cfg(feature = "fs")]
     pub fn with_user_themes() -> Self {
         use crate::all_user_themes;
-        ThemeCursor::new(all_user_themes())
+        let mut themes = all_user_themes();
+        themes.sort();
+        ThemeCursor::new(themes)
     }
 
     /// Built-ins + user themes. User themes with matching names override builtins.
     #[cfg(feature = "fs")]
     pub fn with_all_themes() -> Self {
         use crate::all_themes;
-        ThemeCursor::new(all_themes())
+        let mut themes = all_themes();
+        themes.sort();
+        ThemeCursor::new(themes)
     }
 
     /// Moves the cursor to the theme matching `name` (slug-insensitive) and returns it.
@@ -121,69 +127,40 @@ impl ThemeCursor<Theme> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Ansi, Meta, Semantic, Theme, Ui, UiBg, UiBorder, UiCursor, UiFg, UiSelection};
+    use crate::Theme;
 
     fn make_theme(name: &str) -> Theme {
-        Theme {
-            meta: Meta {
-                name: name.to_string(),
-                author: None,
-                version: None,
-                description: None,
-                dark: None,
-            },
-            ansi: Ansi {
-                black: "#000000".into(),
-                red: "#cc0000".into(),
-                green: "#4e9a06".into(),
-                yellow: "#c4a000".into(),
-                blue: "#3465a4".into(),
-                magenta: "#75507b".into(),
-                cyan: "#06989a".into(),
-                white: "#d3d7cf".into(),
-                bright_black: "#555753".into(),
-                bright_red: "#ef2929".into(),
-                bright_green: "#8ae234".into(),
-                bright_yellow: "#fce94f".into(),
-                bright_blue: "#729fcf".into(),
-                bright_magenta: "#ad7fa8".into(),
-                bright_cyan: "#34e2e2".into(),
-                bright_white: "#eeeeec".into(),
-            },
-            palette: None,
-            base16: None,
-            semantic: Semantic {
-                error: "#cc0000".into(),
-                warning: "#c4a000".into(),
-                info: "#3465a4".into(),
-                success: "#4e9a06".into(),
-                highlight: "#c4a000".into(),
-                link: "#06989a".into(),
-            },
-            ui: Ui {
-                bg: UiBg {
-                    primary: "#1c1c1c".into(),
-                    secondary: "#2c2c2c".into(),
-                },
-                fg: UiFg {
-                    primary: "#eeeeec".into(),
-                    secondary: "#d3d7cf".into(),
-                    muted: "#888a85".into(),
-                },
-                border: UiBorder {
-                    primary: "#555753".into(),
-                    muted: "#2c2c2c".into(),
-                },
-                cursor: UiCursor {
-                    primary: "#eeeeec".into(),
-                    muted: "#888a85".into(),
-                },
-                selection: UiSelection {
-                    bg: "#3465a4".into(),
-                    fg: "#eeeeec".into(),
-                },
-            },
-        }
+        // Build a minimal base24 YAML string so tests don't depend on struct internals.
+        let yaml = format!(
+            r#"scheme: "{name}"
+author: "test"
+base00: "1c1c1c"
+base01: "2c2c2c"
+base02: "3c3c3c"
+base03: "555753"
+base04: "888a85"
+base05: "eeeeec"
+base06: "d3d7cf"
+base07: "eeeeec"
+base08: "cc0000"
+base09: "c4a000"
+base0A: "c4a000"
+base0B: "4e9a06"
+base0C: "06989a"
+base0D: "3465a4"
+base0E: "75507b"
+base0F: "cc0000"
+base10: "1c1c1c"
+base11: "000000"
+base12: "ef2929"
+base13: "fce94f"
+base14: "8ae234"
+base15: "34e2e2"
+base16: "729fcf"
+base17: "ad7fa8"
+"#
+        );
+        Theme::from_base24_str(&yaml).expect("test theme YAML is invalid")
     }
 
     fn cursor_with_names(names: &[&str]) -> ThemeCursor<Theme> {
@@ -197,28 +174,14 @@ mod tests {
     // --- empty cursor ---
 
     #[test]
-    fn empty_cursor_peek_is_none() {
-        let c = ThemeCursor::<Theme>::new(vec![]);
-        assert!(c.peek().is_none());
-    }
-
-    #[test]
-    fn empty_cursor_next_is_none() {
+    fn empty_cursor() {
         let mut c = ThemeCursor::<Theme>::new(vec![]);
-        assert!(c.next().is_none());
-    }
-
-    #[test]
-    fn empty_cursor_prev_is_none() {
-        let mut c = ThemeCursor::<Theme>::new(vec![]);
-        assert!(c.prev().is_none());
-    }
-
-    #[test]
-    fn empty_cursor_len_and_is_empty() {
-        let c = ThemeCursor::<Theme>::new(vec![]);
         assert_eq!(c.len(), 0);
         assert!(c.is_empty());
+        assert!(c.peek().is_none());
+        assert!(c.next().is_none());
+        assert!(c.prev().is_none());
+        assert!(c.themes().is_empty());
     }
 
     // --- single-element cursor ---
@@ -316,12 +279,6 @@ mod tests {
         assert_eq!(names, vec!["Alpha", "Beta", "Gamma"]);
     }
 
-    #[test]
-    fn themes_is_empty_for_empty_cursor() {
-        let c = ThemeCursor::<Theme>::new(vec![]);
-        assert!(c.themes().is_empty());
-    }
-
     // --- with_builtins ---
 
     #[test]
@@ -329,6 +286,15 @@ mod tests {
         let c = ThemeCursor::with_builtins();
         assert!(!c.is_empty());
         assert!(c.peek().is_some());
+    }
+
+    #[test]
+    fn with_builtins_is_sorted() {
+        let c = ThemeCursor::with_builtins();
+        let names: Vec<&str> = c.themes().iter().map(|t| t.meta.name.as_str()).collect();
+        let mut sorted = names.clone();
+        sorted.sort();
+        assert_eq!(names, sorted);
     }
 
     #[test]

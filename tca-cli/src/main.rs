@@ -3,14 +3,13 @@ use clap::{Parser, Subcommand};
 
 mod add;
 mod config;
-mod export;
 mod init;
 mod list;
 mod validate;
 
-pub const REPO: &str = "git@github.com:carmiac/tca-themes.git";
-pub const REPO_DIR: &str = "themes";
-pub const REPO_BRANCH: &str = "main";
+pub const REPO: &str = "git@github.com:tinted-theming/schemes.git";
+pub const REPO_DIR: &str = "base24";
+pub const REPO_BRANCH: &str = "spec-0.11";
 
 #[derive(Parser)]
 #[command(name = "tca")]
@@ -23,23 +22,10 @@ struct Cli {
 
 #[derive(Subcommand, Clone, Debug)]
 enum Commands {
-    /// Validate a TCA theme file
+    /// Validate a TCA base24 theme file
     Validate {
-        /// Path to the theme TOML file or theme name from shared directory
+        /// Path to the theme YAML file or theme name from shared directory
         theme: String,
-        /// Path to the schema file
-        schema_path: Option<String>,
-    },
-    /// Export a theme to various formats
-    Export {
-        /// Path to the theme TOML file or theme name from shared directory
-        theme: String,
-        /// Output format (kitty, alacritty, base16, vim, helix, starship, vscode, iterm2, tmux)
-        #[arg(value_name = "FORMAT")]
-        format: String,
-        /// Output file path (default: stdout)
-        #[arg(short, long)]
-        output: Option<String>,
     },
     /// List all available themes.
     List,
@@ -50,9 +36,9 @@ enum Commands {
     },
     /// Add a theme to the common directory from a given file, directory, or download by name.
     ///
-    /// Supports somewhat fuzzy names when downloading themes, so "Tokyo Nights", "tokyo-nights", "tokyoNights", etc.
-    /// would all get the same theme.
-    /// 'tca add /path/to/theme.toml'
+    /// Supports somewhat fuzzy names when downloading themes, so "Tokyo Nights", "tokyo-nights",
+    /// "tokyoNights", etc. would all get the same theme.
+    /// 'tca add /path/to/theme.yaml'
     /// 'tca add /path/to/theme/dir/'
     /// 'tca add tokyo-nights'
     /// 'tca add "Tokyo Nights"
@@ -104,15 +90,8 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Validate { theme, schema_path } => {
-            validate::run(&theme, schema_path)?;
-        }
-        Commands::Export {
-            theme,
-            format,
-            output,
-        } => {
-            export::run(&theme, &format, output.as_deref())?;
+        Commands::Validate { theme } => {
+            validate::run(&theme)?;
         }
         Commands::List => {
             list::run()?;

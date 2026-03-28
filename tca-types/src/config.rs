@@ -72,15 +72,9 @@ impl fmt::Display for TcaConfig {
         write!(
             f,
             "default: {:?}\ndefault_dark: {:?}\ndefault_light: {:?}",
-            self.tca.default_theme.clone().unwrap_or("None".to_string()),
-            self.tca
-                .default_dark_theme
-                .clone()
-                .unwrap_or("None".to_string()),
-            self.tca
-                .default_light_theme
-                .clone()
-                .unwrap_or("None".to_string()),
+            self.tca.default_theme.as_deref().unwrap_or("None"),
+            self.tca.default_dark_theme.as_deref().unwrap_or("None"),
+            self.tca.default_light_theme.as_deref().unwrap_or("None"),
         )
     }
 }

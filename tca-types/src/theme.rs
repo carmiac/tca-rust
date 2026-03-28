@@ -6,11 +6,12 @@
 #![warn(missing_docs)]
 #[cfg(feature = "fs")]
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use serde::Serialize;
 #[cfg(feature = "fs")]
 use std::path::PathBuf;
 
+use crate::base24::{is_dark, normalize_hex, parse_base24};
+#[cfg(feature = "fs")]
 use crate::user_themes_path;
 
 /// Errors that can occur when parsing a hex color string.
@@ -21,52 +22,105 @@ pub enum HexColorError {
     InvalidLength(usize),
     /// A hex digit could not be parsed.
     #[error("invalid hex digit: {0}")]
-    InvalidHex(#[from] std::num::ParseIntError),
+    InvalidHex(std::num::ParseIntError),
+}
+
+impl From<std::num::ParseIntError> for HexColorError {
+    fn from(e: std::num::ParseIntError) -> Self {
+        HexColorError::InvalidHex(e)
+    }
+}
+
+/// The raw base24 color slots (base00–base17) as `#rrggbb` hex strings.
+///
+/// These are the canonical values from which all TCA semantic fields are derived.
+/// base16-only themes leave base10–base17 set to their spec-defined fallbacks.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct Base24Slots {
+    /// Darkest background / ANSI black background.
+    pub base00: String,
+    /// Secondary background.
+    pub base01: String,
+    /// Selection / border background.
+    pub base02: String,
+    /// Comments / bright black (ANSI 8).
+    pub base03: String,
+    /// Muted / dark foreground.
+    pub base04: String,
+    /// Primary foreground / white (ANSI 7).
+    pub base05: String,
+    /// Secondary foreground.
+    pub base06: String,
+    /// Bright white (ANSI 15).
+    pub base07: String,
+    /// Red / error (ANSI 1).
+    pub base08: String,
+    /// Orange / warning.
+    pub base09: String,
+    /// Yellow (ANSI 3).
+    pub base0a: String,
+    /// Green / success (ANSI 2).
+    pub base0b: String,
+    /// Cyan / info (ANSI 6).
+    pub base0c: String,
+    /// Blue / link (ANSI 4).
+    pub base0d: String,
+    /// Magenta / highlight (ANSI 5).
+    pub base0e: String,
+    /// Brown / deprecated.
+    pub base0f: String,
+    /// True black (ANSI 0 terminal color). Fallback: base00.
+    pub base10: String,
+    /// Reserved. Fallback: base00.
+    pub base11: String,
+    /// Bright red (ANSI 9). Fallback: base08.
+    pub base12: String,
+    /// Bright yellow (ANSI 11). Fallback: base0a.
+    pub base13: String,
+    /// Bright green (ANSI 10). Fallback: base0b.
+    pub base14: String,
+    /// Bright cyan (ANSI 14). Fallback: base0c.
+    pub base15: String,
+    /// Bright blue (ANSI 12). Fallback: base0d.
+    pub base16: String,
+    /// Bright magenta (ANSI 13). Fallback: base0e.
+    pub base17: String,
 }
 
 /// A complete TCA theme definition.
-#[derive(Debug, Clone, Deserialize, Serialize)]
+///
+/// All color fields contain resolved `#rrggbb` hex strings.
+#[derive(Debug, Clone, Serialize)]
 pub struct Theme {
-    /// Theme metadata. Serde key is `theme` to match the TOML section name.
-    #[serde(rename = "theme")]
+    /// Theme metadata.
     pub meta: Meta,
-    /// ANSI 16-color definitions.
+    /// ANSI 16-color definitions derived from base24 slots.
     pub ansi: Ansi,
-    /// Optional named color palette.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub palette: Option<Palette>,
-    /// Optional Base16 color scheme.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub base16: Option<Base16>,
-    /// Semantic color roles.
+    /// Semantic color roles derived from base24 slots.
     pub semantic: Semantic,
-    /// UI element colors.
+    /// UI element colors derived from base24 slots.
     pub ui: Ui,
+    /// Raw base24 color slots for direct interoperability.
+    pub base24: Base24Slots,
 }
 
-/// Theme metadata (TOML section `[theme]`).
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+/// Theme metadata.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Meta {
     /// Human-readable theme name.
     pub name: String,
-    /// Theme author name or contact.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub author: Option<String>,
-    /// Semantic version string (e.g. `"1.0.0"`).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub version: Option<String>,
-    /// Short description of the theme.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub description: Option<String>,
+    /// Theme author name or contact. Empty string if not specified.
+    pub author: String,
     /// `true` for dark themes, `false` for light themes.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub dark: Option<bool>,
+    ///
+    /// Derived from the luminance of `bg.primary` (base00 vs base07).
+    pub dark: bool,
 }
 
-/// ANSI 16-color definitions (TOML section `[ansi]`).
+/// ANSI 16-color definitions, derived from base24 slots per the TCA spec.
 ///
-/// All values must be direct `#RRGGBB` hex strings — no palette references.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+/// All values are resolved `#rrggbb` hex strings.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Ansi {
     /// ANSI color 0 — black.
     pub black: String,
@@ -102,88 +156,8 @@ pub struct Ansi {
     pub bright_white: String,
 }
 
-impl Ansi {
-    /// Return the hex color string for the given ANSI key name (e.g. `"red"`, `"bright_black"`).
-    ///
-    /// Returns `None` for unknown key names.
-    pub fn get(&self, key: &str) -> Option<&str> {
-        match key {
-            "black" => Some(&self.black),
-            "red" => Some(&self.red),
-            "green" => Some(&self.green),
-            "yellow" => Some(&self.yellow),
-            "blue" => Some(&self.blue),
-            "magenta" => Some(&self.magenta),
-            "cyan" => Some(&self.cyan),
-            "white" => Some(&self.white),
-            "bright_black" => Some(&self.bright_black),
-            "bright_red" => Some(&self.bright_red),
-            "bright_green" => Some(&self.bright_green),
-            "bright_yellow" => Some(&self.bright_yellow),
-            "bright_blue" => Some(&self.bright_blue),
-            "bright_magenta" => Some(&self.bright_magenta),
-            "bright_cyan" => Some(&self.bright_cyan),
-            "bright_white" => Some(&self.bright_white),
-            _ => None,
-        }
-    }
-}
-
-/// Color palette with named hue ramps (TOML section `[palette]`).
-///
-/// Each ramp is a 0-indexed `Vec<String>` where values are either
-/// `#RRGGBB` hex strings or `ansi.<key>` references.
-/// Ramps should be ordered darkest (index 0) to lightest.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
-pub struct Palette(HashMap<String, Vec<String>>);
-
-impl Palette {
-    /// Create a palette from a map of ramp names to color vectors.
-    pub fn new(map: HashMap<String, Vec<String>>) -> Self {
-        Self(map)
-    }
-
-    /// Return the named ramp, or `None` if it doesn't exist.
-    pub fn get_ramp(&self, name: &str) -> Option<&[String]> {
-        self.0.get(name).map(|v| &**v)
-    }
-
-    /// Return all ramp names in sorted order.
-    pub fn ramp_names(&self) -> Vec<&str> {
-        let mut names: Vec<&str> = self.0.keys().map(String::as_str).collect();
-        names.sort();
-        names
-    }
-
-    /// Iterate over all `(ramp_name, colors)` pairs in arbitrary order.
-    pub fn entries(&self) -> impl Iterator<Item = (&str, &Vec<String>)> {
-        self.0.iter().map(|(k, v)| (k.as_str(), v))
-    }
-}
-
-/// Base16 color definitions (TOML section `[base16]`).
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
-pub struct Base16(HashMap<String, String>);
-
-impl Base16 {
-    /// Create a Base16 map from a raw key→value map.
-    pub fn new(map: HashMap<String, String>) -> Self {
-        Self(map)
-    }
-
-    /// Return the raw color reference for the given Base16 key, or `None`.
-    pub fn get(&self, key: &str) -> Option<&str> {
-        self.0.get(key).map(String::as_str)
-    }
-
-    /// Iterate over all `(key, value)` pairs in arbitrary order.
-    pub fn entries(&self) -> impl Iterator<Item = (&str, &str)> {
-        self.0.iter().map(|(k, v)| (k.as_str(), v.as_str()))
-    }
-}
-
 /// Semantic color roles (TOML section `[semantic]`).
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Semantic {
     /// Color for error states.
     pub error: String,
@@ -200,7 +174,7 @@ pub struct Semantic {
 }
 
 /// Background colors (nested under `[ui.bg]`).
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct UiBg {
     /// Primary application background.
     pub primary: String,
@@ -209,7 +183,7 @@ pub struct UiBg {
 }
 
 /// Foreground colors (nested under `[ui.fg]`).
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct UiFg {
     /// Primary text color.
     pub primary: String,
@@ -220,7 +194,7 @@ pub struct UiFg {
 }
 
 /// Border colors (nested under `[ui.border]`).
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct UiBorder {
     /// Active / focused border color.
     pub primary: String,
@@ -229,7 +203,7 @@ pub struct UiBorder {
 }
 
 /// Cursor colors (nested under `[ui.cursor]`).
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct UiCursor {
     /// Active cursor color.
     pub primary: String,
@@ -238,7 +212,7 @@ pub struct UiCursor {
 }
 
 /// Selection colors (nested under `[ui.selection]`).
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct UiSelection {
     /// Selection background.
     pub bg: String,
@@ -247,7 +221,7 @@ pub struct UiSelection {
 }
 
 /// UI element colors (TOML section `[ui]` with nested sub-tables).
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Ui {
     /// Background colors (`[ui.bg]`).
     pub bg: UiBg,
@@ -262,77 +236,220 @@ pub struct Ui {
 }
 
 impl Theme {
-    /// Resolve a color reference to its `#RRGGBB` hex value.
-    ///
-    /// Supported reference formats:
-    /// - Direct hex: `#ff0000`
-    /// - ANSI reference: `ansi.red`, `ansi.bright_black`
-    /// - Palette reference: `palette.neutral.0` (0-based index)
-    /// - Base16 reference: `base16.base08` (resolved recursively)
-    pub fn resolve<'a>(&'a self, color_ref: &'a str) -> Option<&'a str> {
-        if color_ref.starts_with('#') {
-            return Some(color_ref);
-        }
-
-        // Split into at most 3 parts on the first two dots.
-        match color_ref.splitn(3, '.').collect::<Vec<_>>().as_slice() {
-            ["palette", ramp, idx_str] => {
-                let idx: usize = idx_str.parse().ok()?;
-                let value = self.palette.as_ref()?.get_ramp(ramp)?.get(idx)?;
-                // Palette values may themselves be ansi.* refs or hex.
-                self.resolve(value)
-            }
-            ["ansi", key] => Some(self.ansi.get(key)?),
-            ["base16", key] => {
-                let value = self.base16.as_ref()?.get(key)?;
-                self.resolve(value)
-            }
-            _ => None,
+    /// Construct a `Theme` by deriving all fields from a set of base24 slots.
+    pub fn from_base24_slots(slots: Base24Slots) -> Self {
+        let dark = is_dark(&slots.base00, &slots.base07);
+        let name = String::new(); // caller must set via from_raw_slots
+        Theme {
+            meta: Meta {
+                name,
+                author: String::new(),
+                dark,
+            },
+            ansi: Ansi {
+                black: slots.base00.clone(),
+                red: slots.base08.clone(),
+                green: slots.base0b.clone(),
+                yellow: slots.base0a.clone(),
+                blue: slots.base0d.clone(),
+                magenta: slots.base0e.clone(),
+                cyan: slots.base0c.clone(),
+                white: slots.base05.clone(),
+                bright_black: slots.base03.clone(),
+                bright_red: slots.base12.clone(),
+                bright_green: slots.base14.clone(),
+                bright_yellow: slots.base13.clone(),
+                bright_blue: slots.base16.clone(),
+                bright_magenta: slots.base17.clone(),
+                bright_cyan: slots.base15.clone(),
+                bright_white: slots.base07.clone(),
+            },
+            semantic: Semantic {
+                error: slots.base08.clone(),
+                warning: slots.base09.clone(),
+                info: slots.base0c.clone(),
+                success: slots.base0b.clone(),
+                highlight: slots.base0e.clone(),
+                link: slots.base0d.clone(),
+            },
+            ui: Ui {
+                fg: UiFg {
+                    primary: slots.base05.clone(),
+                    secondary: slots.base06.clone(),
+                    muted: slots.base04.clone(),
+                },
+                bg: UiBg {
+                    primary: slots.base00.clone(),
+                    secondary: slots.base01.clone(),
+                },
+                border: UiBorder {
+                    primary: slots.base02.clone(),
+                    muted: slots.base01.clone(),
+                },
+                cursor: UiCursor {
+                    primary: slots.base05.clone(),
+                    muted: slots.base04.clone(),
+                },
+                selection: UiSelection {
+                    bg: slots.base02.clone(),
+                    fg: slots.base05.clone(),
+                },
+            },
+            base24: slots,
         }
     }
 
-    /// Creates a new theme, trying to match the passed name to a known
-    /// theme name or path and a reasonable default otherwise. The name is internally
-    /// converted, so e.g. any of the following would get the same theme:
-    /// NordDark
-    /// Nord Dark
-    /// Nord-Dark
-    /// nord-dark
-    /// nordDark
-    /// etc...
+    /// Parse a base24 YAML string and construct a `Theme`.
     ///
-    /// The search fallback order is:
-    /// 1. Local theme files.
-    /// 2. Built in themes.
-    /// 3. User configured default theme.
-    /// 4. Built in default light/dark mode theme based on current mode.
+    /// Accepts the flat `key: "value"` YAML subset used by Base16/24 scheme files.
+    /// Theme name is read from the `scheme` key (with `name` as a fallback).
+    pub fn from_base24_str(src: &str) -> anyhow::Result<Self> {
+        let slots = parse_base24(src.as_bytes())?;
+        Self::from_raw_slots(&slots)
+    }
+
+    /// Build a `Theme` from a parsed [`RawSlots`] map (e.g. from [`parse_base24`]).
+    pub fn from_raw_slots(
+        slots: &std::collections::HashMap<String, String>,
+    ) -> anyhow::Result<Self> {
+        use anyhow::anyhow;
+
+        let b = |key: &str| -> anyhow::Result<String> {
+            let raw = slots
+                .get(key)
+                .ok_or_else(|| anyhow!("missing required slot '{key}'"))?;
+            normalize_hex(raw).map_err(|e| anyhow!("slot '{key}': {e}"))
+        };
+
+        let is_base24 = slots.contains_key("base10");
+
+        let base00 = b("base00")?;
+        let base01 = b("base01")?;
+        let base02 = b("base02")?;
+        let base03 = b("base03")?;
+        let base04 = b("base04")?;
+        let base05 = b("base05")?;
+        let base06 = b("base06")?;
+        let base07 = b("base07")?;
+        let base08 = b("base08")?;
+        let base09 = b("base09")?;
+        let base0a = b("base0a")?;
+        let base0b = b("base0b")?;
+        let base0c = b("base0c")?;
+        let base0d = b("base0d")?;
+        let base0e = b("base0e")?;
+        let base0f = b("base0f")?;
+
+        // Base24 extended slots — fall back to spec-defined base16 equivalents.
+        let base10 = if is_base24 {
+            b("base10")?
+        } else {
+            base00.clone()
+        };
+        let base11 = if is_base24 {
+            b("base11")?
+        } else {
+            base00.clone()
+        };
+        let base12 = if is_base24 {
+            b("base12")?
+        } else {
+            base08.clone()
+        };
+        let base13 = if is_base24 {
+            b("base13")?
+        } else {
+            base0a.clone()
+        };
+        let base14 = if is_base24 {
+            b("base14")?
+        } else {
+            base0b.clone()
+        };
+        let base15 = if is_base24 {
+            b("base15")?
+        } else {
+            base0c.clone()
+        };
+        let base16 = if is_base24 {
+            b("base16")?
+        } else {
+            base0d.clone()
+        };
+        let base17 = if is_base24 {
+            b("base17")?
+        } else {
+            base0e.clone()
+        };
+
+        let name = slots
+            .get("scheme")
+            .or_else(|| slots.get("name"))
+            .cloned()
+            .unwrap_or_else(|| "Imported Theme".to_string());
+        let author = slots.get("author").cloned().unwrap_or_default();
+
+        let raw = Base24Slots {
+            base00,
+            base01,
+            base02,
+            base03,
+            base04,
+            base05,
+            base06,
+            base07,
+            base08,
+            base09,
+            base0a,
+            base0b,
+            base0c,
+            base0d,
+            base0e,
+            base0f,
+            base10,
+            base11,
+            base12,
+            base13,
+            base14,
+            base15,
+            base16,
+            base17,
+        };
+
+        let mut theme = Self::from_base24_slots(raw);
+        theme.meta.name = name;
+        theme.meta.author = author;
+        Ok(theme)
+    }
+
+    /// Creates a `Theme` from an optional name, searching in order:
     ///
-    /// If build without the 'fs' option, built in themes are checked, and a
-    /// default dark theme is returned if not found.
+    /// 1. User theme files (if `fs` feature enabled).
+    /// 2. Built-in themes.
+    /// 3. User config default (if `fs` feature enabled).
+    /// 4. Built-in dark/light default based on terminal mode.
+    ///
+    /// The name is case-insensitive and accepts any common case format
+    /// (`"Nord Dark"`, `"nord-dark"`, `"NordDark"` all work).
     pub fn from_name(name: Option<&str>) -> Theme {
         use crate::BuiltinTheme;
         #[cfg(feature = "fs")]
         {
             use crate::util::load_theme_file;
             use terminal_colorsaurus::{theme_mode, QueryOptions, ThemeMode};
-            // 1. Try loading by name/path from the themes directory
             name.and_then(|n| load_theme_file(n).ok())
-                .as_ref()
-                .and_then(|s| toml::from_str::<Theme>(s).ok())
-                // 2. Try the named built-in theme
+                .as_deref()
+                .and_then(|s| Theme::from_base24_str(s).ok())
                 .or_else(|| {
                     name.and_then(|n| {
                         let slug = heck::AsKebabCase(n).to_string();
                         slug.parse::<BuiltinTheme>().ok().map(|b| b.theme())
                     })
                 })
-                // 3. Try the global config default
-                //    (e.g. ~/.config/tca/config.toml has `default_theme = "nord"`)
                 .or_else(|| {
                     crate::util::mode_aware_theme_name()
                         .and_then(|n| n.parse::<BuiltinTheme>().ok().map(|b| b.theme()))
                 })
-                // 4. Hardcoded default always succeeds
                 .unwrap_or_else(|| match theme_mode(QueryOptions::default()).ok() {
                     Some(ThemeMode::Light) => BuiltinTheme::default_light().theme(),
                     _ => BuiltinTheme::default().theme(),
@@ -345,36 +462,77 @@ impl Theme {
         }
     }
 
-    /// Returns the canonical name slug for the theme.
+    /// Returns the kebab-case slug for the theme name.
     ///
-    /// This is the kebab-case version of the theme name.
-    /// e.g. "Tokyo Night" => "tokyo-night"
+    /// e.g. `"Tokyo Night"` -> `"tokyo-night"`
     pub fn name_slug(&self) -> String {
         heck::AsKebabCase(&self.meta.name).to_string()
     }
 
     /// Returns the canonical file name for the theme.
     ///
-    /// This is the kebab-case name + '.toml'
-    /// e.g. "Tokyo Night" => "tokyo-night.toml"
+    /// e.g. `"Tokyo Night"` -> `"tokyo-night.yaml"`
     pub fn to_filename(&self) -> String {
-        let mut theme_name = self.name_slug();
-        if !theme_name.ends_with(".toml") {
-            theme_name.push_str(".toml");
+        let slug = self.name_slug();
+        if slug.ends_with(".yaml") {
+            slug
+        } else {
+            format!("{}.yaml", slug)
         }
-        theme_name
     }
 
-    /// Returns the canonical file path for the theme.
-    ///
-    /// Note that this is not necessarily the current location of the theme, nor
-    /// does it tell you if the theme is locally installed. It just tells you
-    /// where it should be installed to.
+    /// Returns the canonical install path for the theme in the user themes directory.
     #[cfg(feature = "fs")]
     pub fn to_pathbuf(&self) -> Result<PathBuf> {
         let mut path = user_themes_path()?;
         path.push(self.to_filename());
         Ok(path)
+    }
+
+    /// Serialize this theme to a base24 YAML string.
+    ///
+    /// The output is a flat `key: "value"` YAML file compatible with the
+    /// [Tinted Theming base24](https://github.com/tinted-theming/base24/) format.
+    /// Hex values are written as 6-character lowercase strings without a leading `#`.
+    pub fn to_base24_str(&self) -> String {
+        let h = |s: &str| s.trim_start_matches('#').to_lowercase();
+        let variant = if self.meta.dark { "dark" } else { "light" };
+        let author = &self.meta.author;
+        let s = &self.base24;
+        format!(
+            "scheme: \"{name}\"\nauthor: \"{author}\"\nvariant: \"{variant}\"\n\
+             base00: \"{b00}\"\nbase01: \"{b01}\"\nbase02: \"{b02}\"\nbase03: \"{b03}\"\n\
+             base04: \"{b04}\"\nbase05: \"{b05}\"\nbase06: \"{b06}\"\nbase07: \"{b07}\"\n\
+             base08: \"{b08}\"\nbase09: \"{b09}\"\nbase0A: \"{b0a}\"\nbase0B: \"{b0b}\"\n\
+             base0C: \"{b0c}\"\nbase0D: \"{b0d}\"\nbase0E: \"{b0e}\"\nbase0F: \"{b0f}\"\n\
+             base10: \"{b10}\"\nbase11: \"{b11}\"\nbase12: \"{b12}\"\nbase13: \"{b13}\"\n\
+             base14: \"{b14}\"\nbase15: \"{b15}\"\nbase16: \"{b16}\"\nbase17: \"{b17}\"\n",
+            name = self.meta.name,
+            b00 = h(&s.base00),
+            b01 = h(&s.base01),
+            b02 = h(&s.base02),
+            b03 = h(&s.base03),
+            b04 = h(&s.base04),
+            b05 = h(&s.base05),
+            b06 = h(&s.base06),
+            b07 = h(&s.base07),
+            b08 = h(&s.base08),
+            b09 = h(&s.base09),
+            b0a = h(&s.base0a),
+            b0b = h(&s.base0b),
+            b0c = h(&s.base0c),
+            b0d = h(&s.base0d),
+            b0e = h(&s.base0e),
+            b0f = h(&s.base0f),
+            b10 = h(&s.base10),
+            b11 = h(&s.base11),
+            b12 = h(&s.base12),
+            b13 = h(&s.base13),
+            b14 = h(&s.base14),
+            b15 = h(&s.base15),
+            b16 = h(&s.base16),
+            b17 = h(&s.base17),
+        )
     }
 }
 
@@ -393,7 +551,7 @@ impl PartialOrd for Theme {
 
 impl Ord for Theme {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.name_slug().cmp(&(other.name_slug()))
+        self.name_slug().cmp(&other.name_slug())
     }
 }
 
@@ -433,155 +591,142 @@ pub fn hex_to_rgb(hex: &str) -> Result<(u8, u8, u8), HexColorError> {
 mod tests {
     use super::*;
 
-    fn create_test_theme() -> Theme {
-        Theme {
-            meta: Meta {
-                name: "Test Theme".to_string(),
-                author: None,
-                version: None,
-                description: None,
-                dark: Some(true),
-            },
-            palette: Some(Palette(HashMap::from([
-                (
-                    "neutral".into(),
-                    vec![
-                        "#1a1a1a".to_string(),
-                        "#666666".to_string(),
-                        "#fafafa".to_string(),
-                    ],
-                ),
-                (
-                    "red".into(),
-                    vec!["#cc0000".to_string(), "ansi.bright_red".to_string()],
-                ),
-            ]))),
-            ansi: Ansi {
-                black: "#1a1a1a".to_string(),
-                red: "#cc0000".to_string(),
-                green: "#00ff00".to_string(),
-                yellow: "#ffff00".to_string(),
-                blue: "#0000ff".to_string(),
-                magenta: "#ff00ff".to_string(),
-                cyan: "#00ffff".to_string(),
-                white: "#fafafa".to_string(),
-                bright_black: "#666666".to_string(),
-                bright_red: "#ff5555".to_string(),
-                bright_green: "#00ff00".to_string(),
-                bright_yellow: "#ffff00".to_string(),
-                bright_blue: "#0000ff".to_string(),
-                bright_magenta: "#ff00ff".to_string(),
-                bright_cyan: "#00ffff".to_string(),
-                bright_white: "#ffffff".to_string(),
-            },
-            base16: None,
-            semantic: Semantic {
-                error: "palette.red.0".to_string(),
-                warning: "ansi.yellow".to_string(),
-                info: "ansi.blue".to_string(),
-                success: "ansi.green".to_string(),
-                highlight: "ansi.cyan".to_string(),
-                link: "palette.red.1".to_string(),
-            },
-            ui: Ui {
-                bg: UiBg {
-                    primary: "palette.neutral.0".to_string(),
-                    secondary: "palette.neutral.1".to_string(),
-                },
-                fg: UiFg {
-                    primary: "palette.neutral.2".to_string(),
-                    secondary: "palette.neutral.1".to_string(),
-                    muted: "palette.neutral.1".to_string(),
-                },
-                border: UiBorder {
-                    primary: "ansi.blue".to_string(),
-                    muted: "palette.neutral.1".to_string(),
-                },
-                cursor: UiCursor {
-                    primary: "ansi.white".to_string(),
-                    muted: "palette.neutral.1".to_string(),
-                },
-                selection: UiSelection {
-                    bg: "palette.neutral.1".to_string(),
-                    fg: "palette.neutral.2".to_string(),
-                },
-            },
-        }
+    const MINIMAL_BASE24: &str = r#"
+scheme: "Test Theme"
+author: "Test Author"
+base00: "1a1a1a"
+base01: "222222"
+base02: "333333"
+base03: "666666"
+base04: "888888"
+base05: "fafafa"
+base06: "e0e0e0"
+base07: "ffffff"
+base08: "cc0000"
+base09: "ff8800"
+base0a: "ffff00"
+base0b: "00ff00"
+base0c: "00ffff"
+base0d: "0000ff"
+base0e: "ff00ff"
+base0f: "aa5500"
+base10: "1a1a1a"
+base11: "000000"
+base12: "ff5555"
+base13: "ffff55"
+base14: "55ff55"
+base15: "55ffff"
+base16: "5555ff"
+base17: "ff55ff"
+"#;
+
+    fn test_theme() -> Theme {
+        Theme::from_base24_str(MINIMAL_BASE24).unwrap()
     }
 
     #[test]
-    fn test_resolve_hex_color() {
-        let theme = create_test_theme();
-        assert_eq!(theme.resolve("#ff0000"), Some("#ff0000"));
+    fn test_from_base24_str_name_and_author() {
+        let t = test_theme();
+        assert_eq!(t.meta.name, "Test Theme");
+        assert_eq!(t.meta.author, "Test Author");
     }
 
     #[test]
-    fn test_resolve_palette_reference() {
-        let theme = create_test_theme();
-        // palette.red.0 → first element of red ramp
-        assert_eq!(theme.resolve("palette.red.0"), Some("#cc0000"));
-        assert_eq!(theme.resolve("palette.red.1"), Some("#ff5555"));
-        assert_eq!(theme.resolve("palette.neutral.0"), Some("#1a1a1a"));
+    fn test_from_base24_str_dark_detection() {
+        let t = test_theme();
+        assert!(t.meta.dark, "dark bg should be detected as dark theme");
     }
 
     #[test]
-    fn test_resolve_ansi_reference() {
-        let theme = create_test_theme();
-        assert_eq!(theme.resolve("ansi.red"), Some("#cc0000"));
-        assert_eq!(theme.resolve("ansi.bright_black"), Some("#666666"));
+    fn test_mapping() {
+        let t = test_theme();
+        assert_eq!(t.ansi.black, "#1a1a1a");
+        assert_eq!(t.ansi.red, "#cc0000");
+        assert_eq!(t.ansi.white, "#fafafa");
+        assert_eq!(t.ansi.bright_black, "#666666"); // base03
+        assert_eq!(t.ansi.bright_red, "#ff5555"); // base12
+        assert_eq!(t.semantic.error, "#cc0000"); // base08
+        assert_eq!(t.semantic.warning, "#ff8800"); // base09
+        assert_eq!(t.semantic.info, "#00ffff"); // base0c
+        assert_eq!(t.semantic.success, "#00ff00"); // base0b
+        assert_eq!(t.semantic.link, "#0000ff"); // base0d
+        assert_eq!(t.ui.bg.primary, "#1a1a1a"); // base00
+        assert_eq!(t.ui.bg.secondary, "#222222"); // base01
+        assert_eq!(t.ui.fg.primary, "#fafafa"); // base05
+        assert_eq!(t.ui.fg.secondary, "#e0e0e0"); // base06
+        assert_eq!(t.ui.fg.muted, "#888888"); // base04
+        assert_eq!(t.ui.border.primary, "#333333"); // base02
+        assert_eq!(t.ui.border.muted, "#222222"); // base01
+        assert_eq!(t.ui.cursor.primary, "#fafafa"); // base05
+        assert_eq!(t.ui.cursor.muted, "#888888"); // base04
+        assert_eq!(t.ui.selection.bg, "#333333"); // base02
+        assert_eq!(t.ui.selection.fg, "#fafafa"); // base05
     }
 
     #[test]
-    fn test_resolve_invalid() {
-        let theme = create_test_theme();
-        assert_eq!(theme.resolve("$nonexistent.3"), None);
-        assert_eq!(theme.resolve("invalid"), None);
-        assert_eq!(theme.resolve("palette.red.99"), None); // out of bounds
+    fn test_base16_fallbacks() {
+        // A base16-only theme (no base10-17) should use fallbacks
+        let src = MINIMAL_BASE24
+            .lines()
+            .filter(|l| !l.starts_with("base1"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let t = Theme::from_base24_str(&src).unwrap();
+        // bright_red (base12) should fall back to red (base08)
+        assert_eq!(t.ansi.bright_red, t.ansi.red);
     }
 
     #[test]
-    fn test_hex_to_rgb_with_hash() {
-        let (r, g, b) = hex_to_rgb("#ff5533").unwrap();
-        assert_eq!((r, g, b), (255, 85, 51));
+    fn test_name_slug_and_filename() {
+        let t = test_theme();
+        assert_eq!(t.name_slug(), "test-theme");
+        assert_eq!(t.to_filename(), "test-theme.yaml");
     }
 
     #[test]
-    fn test_hex_to_rgb_without_hash() {
-        let (r, g, b) = hex_to_rgb("ff5533").unwrap();
-        assert_eq!((r, g, b), (255, 85, 51));
+    fn test_to_base24_str_round_trip() {
+        let original = test_theme();
+        let yaml = original.to_base24_str();
+        let reloaded = Theme::from_base24_str(&yaml).unwrap();
+        assert_eq!(reloaded.meta.name, original.meta.name);
+        assert_eq!(reloaded.meta.dark, original.meta.dark);
+        assert_eq!(reloaded.base24.base08, original.base24.base08);
+        assert_eq!(reloaded.ansi.red, original.ansi.red);
+        assert_eq!(reloaded.semantic.error, original.semantic.error);
     }
 
     #[test]
-    fn test_hex_to_rgb_black() {
-        let (r, g, b) = hex_to_rgb("#000000").unwrap();
-        assert_eq!((r, g, b), (0, 0, 0));
+    fn test_to_base24_str_format() {
+        let t = test_theme();
+        let yaml = t.to_base24_str();
+        // Should be valid flat key:value YAML parseable by our parser
+        assert!(yaml.contains("scheme: \"Test Theme\""));
+        assert!(yaml.contains("base00:"));
+        assert!(yaml.contains("base17:"));
+        // Hex values should be without '#'
+        assert!(!yaml.contains(": \"#"));
     }
 
     #[test]
-    fn test_hex_to_rgb_white() {
-        let (r, g, b) = hex_to_rgb("#ffffff").unwrap();
-        assert_eq!((r, g, b), (255, 255, 255));
+    fn test_hex_to_rgb_valid() {
+        // with and without '#' prefix
+        assert_eq!(hex_to_rgb("#ff5533").unwrap(), (255, 85, 51));
+        assert_eq!(hex_to_rgb("ff5533").unwrap(), (255, 85, 51));
+        // boundary values
+        assert_eq!(hex_to_rgb("#000000").unwrap(), (0, 0, 0));
+        assert_eq!(hex_to_rgb("#ffffff").unwrap(), (255, 255, 255));
     }
 
     #[test]
-    fn test_hex_to_rgb_too_short() {
+    fn test_hex_to_rgb_invalid() {
+        // wrong length
         assert!(hex_to_rgb("#fff").is_err());
         assert!(hex_to_rgb("abc").is_err());
-    }
-
-    #[test]
-    fn test_hex_to_rgb_too_long() {
         assert!(hex_to_rgb("#ff5533aa").is_err());
-    }
-
-    #[test]
-    fn test_hex_to_rgb_invalid_chars() {
+        // bad chars
         assert!(hex_to_rgb("#gggggg").is_err());
         assert!(hex_to_rgb("#xyz123").is_err());
-    }
-
-    #[test]
-    fn test_hex_to_rgb_empty() {
+        // empty
         assert!(hex_to_rgb("").is_err());
         assert!(hex_to_rgb("#").is_err());
     }

@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.6.0]
+
+### Changed
+
+- Migrated theme format from custom TOML to [base24](https://github.com/tinted-theming/base24/) YAML (spec v0.4.0). Theme files now use `.yaml` extensions and the flat base24 key/value format.
+- Custom flat-YAML parser replaces `serde_yaml`; `serde_json`/`jsonschema`/`toml` removed as theme dependencies.
+- `Theme` struct redesigned: `Base24Slots` holds raw hex values; all semantic fields (`Ansi`, `Semantic`, `Ui*`) are resolved at load time from base24 slots.
+
+### Added
+
+- `Theme::from_base24_str()` — parse a base24 YAML string into a fully resolved `Theme`.
+- Built-in themes converted to base24 YAML.
+
+### Removed
+
+- `Ansi::get()` (dead code after base24 migration).
+- `tca import` and `tca export` CLI commands.
+
 ## [0.5.0]
 
 ### Added
@@ -67,7 +85,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Initial Release
 
-[Unreleased]: https://github.com/carmiac/tca-rust/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/carmiac/tca-rust/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/carmiac/tca-rust/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/carmiac/tca-rust/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/carmiac/tca-rust/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/carmiac/tca-rust/compare/v0.2.0...v0.3.0

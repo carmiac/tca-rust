@@ -1,4 +1,4 @@
-use crate::{ColorRamp, TcaTheme};
+use crate::TcaTheme;
 use ratatui::{
     buffer::Buffer,
     layout::{Constraint, Layout, Rect},
@@ -9,8 +9,8 @@ use ratatui::{
 
 /// Displays all color sections of a TCA theme.
 ///
-/// Shows palette ramps, ANSI colors, semantic colors, and UI colors
-/// in a two-column layout. Borrows the theme for the widget lifetime.
+/// Shows ANSI colors, semantic colors, UI colors, and base24 slots
+/// in a three-column layout. Borrows the theme for the widget lifetime.
 ///
 /// # Examples
 ///
@@ -91,14 +91,8 @@ impl Widget for ColorPicker<'_> {
 
         let mut left_lines = vec![Line::from(format!("Theme: {}", theme.meta.name))
             .style(Style::default().fg(title_color))];
-        if let Some(author) = &theme.meta.author {
-            left_lines.push(Line::from(format!("Author: {}", author)));
-        }
-        if let Some(version) = &theme.meta.version {
-            left_lines.push(Line::from(format!("Version: {}", version)));
-        }
-        if let Some(description) = &theme.meta.description {
-            left_lines.push(Line::from(format!("Description: {}", description)));
+        if !theme.meta.author.is_empty() {
+            left_lines.push(Line::from(format!("Author: {}", theme.meta.author)));
         }
 
         left_lines.push(Line::from(""));
@@ -160,17 +154,16 @@ impl Widget for ColorPicker<'_> {
             Line::from("  selection_fg").style(Style::default().fg(theme.ui.selection_fg)),
         ]);
 
-        let mut right_lines = vec![Line::from("Base16 Colors:")];
-        for (key, value) in theme.base16.entries() {
-            right_lines.push(Line::from(format!("  {}", key)).style(Style::default().fg(value)));
-        }
-
-        right_lines.push(Line::from(""));
-        right_lines.push(Line::from("Palette:"));
-        for name in theme.palette.ramp_names() {
-            if let Some(ramp) = theme.palette.get_ramp(name) {
-                right_lines.push(render_color_ramp(name, ramp));
-            }
+        let mut right_lines = vec![Line::from("Base24 Slots:")];
+        let slot_names = [
+            "base00", "base01", "base02", "base03", "base04", "base05", "base06", "base07",
+            "base08", "base09", "base0a", "base0b", "base0c", "base0d", "base0e", "base0f",
+            "base10", "base11", "base12", "base13", "base14", "base15", "base16", "base17",
+        ];
+        for (i, name) in slot_names.iter().enumerate() {
+            right_lines.push(
+                Line::from(format!("  {}", name)).style(Style::default().fg(theme.base24[i])),
+            );
         }
         Paragraph::new(left_lines)
             .wrap(Wrap { trim: false })
@@ -178,12 +171,4 @@ impl Widget for ColorPicker<'_> {
         Paragraph::new(center_lines).render(chunks[1], buf);
         Paragraph::new(right_lines).render(chunks[2], buf);
     }
-}
-
-fn render_color_ramp(name: &str, ramp: &ColorRamp) -> Line<'static> {
-    let mut spans = vec![ratatui::text::Span::raw(format!("  {}: ", name))];
-    for &color in &ramp.colors {
-        spans.push(ratatui::text::Span::styled("█", Style::default().fg(color)));
-    }
-    Line::from(spans)
 }

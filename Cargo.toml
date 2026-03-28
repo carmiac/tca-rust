@@ -3,7 +3,7 @@ resolver = "2"
 members = ["tca-types", "tca-cli", "tca-ratatui"]
 
 [workspace.package]
-version = "0.5.0"
+version = "0.6.0"
 edition = "2021"
 license = "MIT"
 authors = ["carmiac"]
@@ -12,17 +12,15 @@ homepage = "https://github.com/carmiac/tca-rust"
 
 [workspace.dependencies]
 # Internal dependencies
-tca-types = { path = "./tca-types", version = "0.5.0" }
+tca-types = { path = "./tca-types", version = "0.6.0" }
 
 # External dependencies
 thiserror = "2.0"
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
 anyhow = "1.0"
 colored = "2.1"
 etcetera = "0.11.0"
 heck = "0.5"
-jsonschema = "0.42"
 strum = { version = "0.28.0", features = ["derive"] }
 terminal-colorsaurus = "1"
 toml = "0.8"

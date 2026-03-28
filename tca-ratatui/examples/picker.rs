@@ -86,7 +86,7 @@ fn main() -> anyhow::Result<()> {
 
     let themes = match themes_dir {
         Some(dir) => TcaThemeCursor::new(
-            tca_types::all_from_dir(dir)
+            tca_types::all_from_dir(std::path::Path::new(dir))
                 .into_iter()
                 .map(|t| TcaTheme::try_from(t).unwrap_or_default()),
         ),

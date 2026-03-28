@@ -16,9 +16,8 @@ exclude = [".gitignore", "codebook.toml"]
 [dependencies]
 tca-types = { workspace = true, optional = true }
 serde = { workspace = true }
-toml = { workspace = true, optional = true }
-ratatui = { workspace = true }
 anyhow = { workspace = true }
+ratatui = { workspace = true }
 terminal-colorsaurus = { workspace = true, optional = true }
 heck.workspace = true
 
@@ -27,7 +26,7 @@ crossterm = { workspace = true }
 
 [features]
 default = ["fs", "widgets"]
-fs = ["dep:tca-types", "dep:toml", "dep:terminal-colorsaurus"]
+fs = ["dep:tca-types", "dep:terminal-colorsaurus"]
 widgets = []
 
 [[example]]

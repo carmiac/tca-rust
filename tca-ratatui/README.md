@@ -1,6 +1,6 @@
-# Tca-Ratatui
+# tca-ratatui
 
-Ratatui integration for [TCA](https://github.com/carmiac/tca-rust) themes. Loads and resolves TCA theme files into `ratatui::style::Color` values ready to use in widgets and styles.
+Ratatui integration for [TCA](https://github.com/carmiac/tca-rust) themes. Loads base24 YAML theme files into `ratatui::style::Color` values ready to use in widgets and styles.
 
 ## Installation
 
@@ -21,49 +21,11 @@ let theme = TcaTheme::new(Some("tokyo-night"));
 let theme = TcaTheme::new(Some("nordDark"));   // flexible slug matching
 
 // Exact file path
-let theme = TcaTheme::new(Some("path/to/mytheme.toml"));
+let theme = TcaTheme::new(Some("path/to/mytheme.yaml"));
 
 // Auto-detect from terminal dark/light mode, then fall back to built-in default
 let theme = TcaTheme::new(None);
 let theme = TcaTheme::default(); // same as new(None)
-```
-
-### From a TOML string
-
-```rust
-use tca_ratatui::TcaTheme;
-
-let theme = TcaTheme::try_from(toml_str).expect("invalid theme");
-```
-
-### From a `tca_types::Theme`
-
-```rust
-use tca_ratatui::TcaTheme;
-use tca_types::BuiltinTheme;
-
-let raw = BuiltinTheme::Nord.theme();
-let theme = TcaTheme::try_from(raw)?;
-```
-
-### Programmatically with `TcaThemeBuilder`
-
-```rust
-use tca_ratatui::{TcaThemeBuilder, Semantic, Ui};
-use ratatui::style::Color;
-
-let theme = TcaThemeBuilder::new()
-    .semantic(Semantic {
-        error:   Color::Rgb(255, 80, 80),
-        warning: Color::Rgb(255, 200, 0),
-        ..Default::default()
-    })
-    .ui(Ui {
-        bg_primary: Color::Rgb(28, 28, 28),
-        fg_primary: Color::Rgb(238, 238, 236),
-        ..Default::default()
-    })
-    .build();
 ```
 
 ## Loading a collection of themes
@@ -84,15 +46,6 @@ let mut cursor = TcaThemeCursor::with_all_themes();
 let mut cursor = TcaThemeCursor::new(vec![theme_a, theme_b]);
 ```
 
-If you need the raw `tca_types::Theme` type instead, the generic `ThemeCursor<T>` is also re-exported:
-
-```rust
-use tca_ratatui::ThemeCursor;
-use tca_types::Theme;
-
-let mut cursor: ThemeCursor<Theme> = ThemeCursor::with_builtins();
-```
-
 ## Theme cursor navigation
 
 ```rust
@@ -109,11 +62,9 @@ let theme: &TcaTheme = cursor.next().unwrap();
 // Retreat (wraps at start)
 let theme: &TcaTheme = cursor.prev().unwrap();
 
-// Inspect without moving
 println!("Showing: {}", cursor.peek().unwrap().meta.name);
 println!("{} themes available", cursor.len());
 
-// Iterate all themes without cycling
 for theme in cursor.themes() {
     println!("{}", theme.meta.name);
 }
@@ -133,18 +84,16 @@ let error     = Style::default().fg(theme.semantic.error);
 let warning   = Style::default().fg(theme.semantic.warning);
 let ansi_red  = Style::default().fg(theme.ansi.red);
 
-// Palette ramps (if the theme defines them)
-if let Some(ramp) = theme.palette.get_ramp("neutral") {
-    let dark  = ramp.get(0); // darkest
-    let light = ramp.get(ramp.len() - 1); // lightest
-}
+// Raw base24 slot access (index 0 = base00, index 8 = base08, etc.)
+let darkest_bg = theme.base24[0];
+let red_accent = theme.base24[8];
 ```
 
 ## `TcaTheme` fallback behavior
 
 `TcaTheme::new()` resolution order:
 
-1. User theme files — `~/.local/share/tca/themes/<name>.toml`, or an exact file path
+1. User theme files — `~/.local/share/tca/themes/<name>.yaml`, or an exact file path
 2. Built-in themes — always available, no installation required
 3. Auto-detect — dark or light built-in based on the terminal's background color
 
@@ -160,7 +109,7 @@ If `semantic` or `ui` color references can't be resolved, they fall back to sens
 | `everforest-dark`  | dark  |
 | `gruvbox-dark`     | dark  |
 | `mono`             | dark  |
-| `nord`             | dark  |
+| `nord-dark`        | dark  |
 | `one-dark`         | dark  |
 | `rose-pine`        | dark  |
 | `solarized-light`  | light |
@@ -170,29 +119,28 @@ If `semantic` or `ui` color references can't be resolved, they fall back to sens
 
 ```
 TcaTheme
-├── meta      — name, slug, author, version, description, dark
-├── ansi      — 16 ANSI colors (black, red, … bright_white) as Color::Rgb
-├── semantic  — error, warning, info, success, highlight, link
-├── ui        — bg_primary/secondary, fg_primary/secondary/muted,
-│               border_primary/muted, cursor_primary/muted,
-│               selection_bg/fg
-├── palette   — named color ramps (e.g. neutral.0–7, red.0–2)
-└── base16    — base00–base0F if the theme defines them
+├── meta    — name, author, dark
+├── ansi    — 16 ANSI colors (black, red, … bright_white) as Color::Rgb
+├── semantic — error, warning, info, success, highlight, link
+├── ui      — bg_primary/secondary, fg_primary/secondary/muted,
+│              border_primary/muted, cursor_primary/muted,
+│              selection_bg/fg
+└── base24  — [Color; 24] raw base24 slot colors (base00–base17)
 ```
 
 ## Features
 
 | Feature | Default | Description |
 | --- | --- | --- |
-| `fs` | enabled | File I/O, `TcaTheme::new()`, `TcaThemeCursor`, TOML parsing |
+| `fs` | enabled | File I/O, `TcaTheme::new()`, `TcaThemeCursor`, base24 YAML parsing |
 | `widgets` | enabled | `ColorPicker` widget |
 
 ```toml
 # Builder-only, no file I/O or widgets
-tca-ratatui = { version = "0.4", default-features = false }
+tca-ratatui = { version = "0.6", default-features = false }
 
 # With widgets only
-tca-ratatui = { version = "0.4", features = ["widgets"] }
+tca-ratatui = { version = "0.6", features = ["widgets"] }
 ```
 
 ## Examples

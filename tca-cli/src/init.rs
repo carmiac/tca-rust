@@ -13,14 +13,13 @@ pub fn run(all: bool, none: bool, force: bool) -> Result<()> {
     if !none {
         println!("Creating theme directory...");
         let dir = tca_types::user_themes_path()?;
-        fs::create_dir_all(dir)?;
+        fs::create_dir_all(&dir)?;
         println!("Adding built in theme files...");
-        for theme in tca_types::BuiltinTheme::iter() {
-            let t = theme.theme();
+        for variant in tca_types::BuiltinTheme::iter() {
+            let t = variant.theme();
             let path = t.to_pathbuf()?;
-            let content = toml::to_string(&t)?;
             println!("  {}", t.meta.name);
-            fs::write(&path, content)?;
+            fs::write(&path, t.to_base24_str())?;
         }
         if all {
             download_all_themes(&REPO.to_string(), REPO_DIR, &REPO_BRANCH.to_string())?
