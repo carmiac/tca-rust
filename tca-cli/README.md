@@ -1,6 +1,6 @@
-# Tca-Cli
+# tca-cli
 
-CLI tool for validating and exporting [TCA](https://github.com/carmiac/tca-rust) theme files.
+CLI tool for managing [TCA](https://github.com/carmiac/tca-themes) themes. Themes are [base24](https://github.com/tinted-theming/base24/) YAML files stored in `$XDG_DATA_HOME/tca/themes/` (default: `~/.local/share/tca/themes/`).
 
 ## Installation
 
@@ -18,57 +18,72 @@ cargo install --path tca-cli
 
 ## Commands
 
-### `validate`
+### `tca validate <theme>`
 
-Checks a theme file for correctness: hex color syntax, color reference resolution, and WCAG contrast ratios.
-
-```sh
-tca validate path/to/theme.toml
-tca validate nord                    # looks up nord.toml in the themes directory
-tca validate nord --schema schema.json
-```
-
-### `export`
-
-Converts a theme to another application's config format.
+Validates a base24 YAML theme file. Checks that the file parses correctly and reports WCAG contrast warnings/errors for all UI and semantic color pairs.
 
 ```sh
-tca export nord kitty
-tca export path/to/theme.toml alacritty --output ~/.config/alacritty/colors.toml
+tca validate path/to/theme.yaml
+tca validate nord-dark          # looks up nord-dark.yaml in the themes directory
 ```
 
-**Supported formats:**
+Exit code is non-zero if any contrast errors are found.
 
-| Format      | Output                          |
-| ----------- | ------------------------------- |
-| `kitty`     | Kitty terminal color scheme     |
-| `alacritty` | Alacritty terminal color scheme |
-| `base16`    | Base16 YAML scheme              |
-| `vim`       | Vim colorscheme                 |
-| `helix`     | Helix editor theme              |
-| `starship`  | Starship prompt palette         |
-| `vscode`    | VS Code color theme JSON        |
-| `iterm2`    | iTerm2 color preset plist       |
-| `tmux`      | tmux status/pane color config   |
+### `tca list`
 
-### `list`
-
-Lists all installed themes.
+Lists all available themes: built-in themes and any themes installed in the user themes directory.
 
 ```sh
 tca list
 ```
 
+### `tca add [OPTIONS] [THEME]...`
+
+Adds one or more themes to the user themes directory. Each argument can be:
+
+- A path to a `.yaml` theme file.
+- A path to a directory, all `.yaml` files in it are copied.
+- A theme name, downloaded from the remote theme repository.
+
+```sh
+tca add path/to/theme.yaml
+tca add path/to/themes/dir/
+tca add nord-dark
+tca add "Tokyo Night"          # case-insensitive, any common casing works
+
+tca add --all                  # download every theme from the repository
+```
+
+### `tca init [OPTIONS]`
+
+Creates a default config file and writes the built-in themes to the user themes directory.
+
+```sh
+tca init               # write config + install built-in themes
+tca init --all         # write config + download all themes from the repository
+tca init --none        # write config only, no theme files
+tca init --force       # overwrite existing config file
+```
+
+### `tca config [SUBCOMMAND]`
+
+Shows or sets user configuration. Config is stored at `$XDG_CONFIG_HOME/tca/tca.toml` (default: `~/.config/tca/tca.toml`).
+
+```sh
+tca config                         # show current config
+tca config show                    # same as above
+tca config set default "Dracula"
+tca config set default_dark  "Tokyo Night"
+tca config set default_light "Solarized Light"
+```
+
+Theme names can be in any standard case (`"Tokyo Night"`, `"tokyo-night"`, `"TokyoNight"` all work).
+
 ## Theme Directory
 
-Themes are `.toml` files in `~/.local/share/tca-themes/` (or `$XDG_DATA_HOME/tca-themes/`).
+Themes are base24 YAML files (`*.yaml`) in `$XDG_DATA_HOME/tca/themes/` (default `~/.local/share/tca/themes/`).
 
-## Roadmap
-
-- Init command to create default config and add default theme files
-- Download and install themes
-- Import base16/24 themes into TCA format
-- Export to base24
+Use `tca init` or `tca add` to populate this directory.
 
 ## License
 

@@ -516,6 +516,52 @@ impl Theme {
         path.push(self.to_filename());
         Ok(path)
     }
+
+    /// Serialize this theme to a base24 YAML string.
+    ///
+    /// The output is a flat `key: "value"` YAML file compatible with the
+    /// [Tinted Theming base24](https://github.com/tinted-theming/base24/) format.
+    /// Hex values are written as 6-character lowercase strings without a leading `#`.
+    pub fn to_base24_str(&self) -> String {
+        let h = |s: &str| s.trim_start_matches('#').to_lowercase();
+        let variant = if self.meta.dark { "dark" } else { "light" };
+        let author = self.meta.author.as_deref().unwrap_or("Unknown");
+        let s = &self.base24;
+        format!(
+            "scheme: \"{name}\"\nauthor: \"{author}\"\nvariant: \"{variant}\"\n\
+             base00: \"{b00}\"\nbase01: \"{b01}\"\nbase02: \"{b02}\"\nbase03: \"{b03}\"\n\
+             base04: \"{b04}\"\nbase05: \"{b05}\"\nbase06: \"{b06}\"\nbase07: \"{b07}\"\n\
+             base08: \"{b08}\"\nbase09: \"{b09}\"\nbase0A: \"{b0a}\"\nbase0B: \"{b0b}\"\n\
+             base0C: \"{b0c}\"\nbase0D: \"{b0d}\"\nbase0E: \"{b0e}\"\nbase0F: \"{b0f}\"\n\
+             base10: \"{b10}\"\nbase11: \"{b11}\"\nbase12: \"{b12}\"\nbase13: \"{b13}\"\n\
+             base14: \"{b14}\"\nbase15: \"{b15}\"\nbase16: \"{b16}\"\nbase17: \"{b17}\"\n",
+            name = self.meta.name,
+            b00 = h(&s.base00),
+            b01 = h(&s.base01),
+            b02 = h(&s.base02),
+            b03 = h(&s.base03),
+            b04 = h(&s.base04),
+            b05 = h(&s.base05),
+            b06 = h(&s.base06),
+            b07 = h(&s.base07),
+            b08 = h(&s.base08),
+            b09 = h(&s.base09),
+            b0a = h(&s.base0a),
+            b0b = h(&s.base0b),
+            b0c = h(&s.base0c),
+            b0d = h(&s.base0d),
+            b0e = h(&s.base0e),
+            b0f = h(&s.base0f),
+            b10 = h(&s.base10),
+            b11 = h(&s.base11),
+            b12 = h(&s.base12),
+            b13 = h(&s.base13),
+            b14 = h(&s.base14),
+            b15 = h(&s.base15),
+            b16 = h(&s.base16),
+            b17 = h(&s.base17),
+        )
+    }
 }
 
 impl PartialEq for Theme {
@@ -680,6 +726,30 @@ base17: "ff55ff"
     fn test_to_filename() {
         let t = test_theme();
         assert_eq!(t.to_filename(), "test-theme.yaml");
+    }
+
+    #[test]
+    fn test_to_base24_str_round_trip() {
+        let original = test_theme();
+        let yaml = original.to_base24_str();
+        let reloaded = Theme::from_base24_str(&yaml).unwrap();
+        assert_eq!(reloaded.meta.name, original.meta.name);
+        assert_eq!(reloaded.meta.dark, original.meta.dark);
+        assert_eq!(reloaded.base24.base08, original.base24.base08);
+        assert_eq!(reloaded.ansi.red, original.ansi.red);
+        assert_eq!(reloaded.semantic.error, original.semantic.error);
+    }
+
+    #[test]
+    fn test_to_base24_str_format() {
+        let t = test_theme();
+        let yaml = t.to_base24_str();
+        // Should be valid flat key:value YAML parseable by our parser
+        assert!(yaml.contains("scheme: \"Test Theme\""));
+        assert!(yaml.contains("base00:"));
+        assert!(yaml.contains("base17:"));
+        // Hex values should be without '#'
+        assert!(!yaml.contains(": \"#"));
     }
 
     #[test]

@@ -44,7 +44,7 @@ pub fn run(
             for entry in WalkDir::new(theme_path)
                 .into_iter()
                 .filter_map(|e| e.ok())
-                .filter(|e| e.path().extension().is_some_and(|ext| ext == "toml"))
+                .filter(|e| e.path().extension().is_some_and(|ext| ext == "yaml"))
             {
                 let src = entry.path();
                 let dest = theme_dir.join(entry.file_name());
@@ -52,7 +52,7 @@ pub fn run(
                 std::fs::copy(src, dest)?;
                 found_themes.insert(path);
             }
-        } else if theme_path.extension().is_some_and(|ext| ext == "toml") {
+        } else if theme_path.extension().is_some_and(|ext| ext == "yaml") {
             // Copy file to user theme path if it is a toml.
             let dest = theme_dir.join(
                 theme_path
@@ -91,8 +91,8 @@ fn copy_from_repo(
     let theme_names = theme.iter().map(|t| {
         let mut theme_name = heck::AsKebabCase(t).to_string();
 
-        if !theme_name.ends_with(".toml") {
-            theme_name.push_str(".toml");
+        if !theme_name.ends_with(".yaml") {
+            theme_name.push_str(".yaml");
         }
         theme_name
     });

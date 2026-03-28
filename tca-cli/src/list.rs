@@ -11,7 +11,7 @@ pub fn run() -> Result<()> {
         let mut user_themes = tca_types::all_user_themes();
         if user_themes.is_empty() {
             println!("No themes found.");
-            println!("Add .toml theme files to theme directory.");
+            println!("Add .yaml theme files to theme directory.");
         } else {
             user_themes.sort();
             for theme in user_themes.iter() {

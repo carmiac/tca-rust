@@ -61,7 +61,6 @@ impl BuiltinTheme {
             BuiltinTheme::SolarizedLight => include_str!("themes/solarized-light.yaml"),
             BuiltinTheme::TokyoNight => include_str!("themes/tokyo-night.yaml"),
         };
-
         Theme::from_base24_str(src).expect("Built in base24 YAML is invalid.")
     }
 
