@@ -168,28 +168,14 @@ base17: "ad7fa8"
     // --- empty cursor ---
 
     #[test]
-    fn empty_cursor_peek_is_none() {
-        let c = ThemeCursor::<Theme>::new(vec![]);
-        assert!(c.peek().is_none());
-    }
-
-    #[test]
-    fn empty_cursor_next_is_none() {
+    fn empty_cursor() {
         let mut c = ThemeCursor::<Theme>::new(vec![]);
-        assert!(c.next().is_none());
-    }
-
-    #[test]
-    fn empty_cursor_prev_is_none() {
-        let mut c = ThemeCursor::<Theme>::new(vec![]);
-        assert!(c.prev().is_none());
-    }
-
-    #[test]
-    fn empty_cursor_len_and_is_empty() {
-        let c = ThemeCursor::<Theme>::new(vec![]);
         assert_eq!(c.len(), 0);
         assert!(c.is_empty());
+        assert!(c.peek().is_none());
+        assert!(c.next().is_none());
+        assert!(c.prev().is_none());
+        assert!(c.themes().is_empty());
     }
 
     // --- single-element cursor ---
@@ -285,12 +271,6 @@ base17: "ad7fa8"
         let c = cursor_with_names(&["Alpha", "Beta", "Gamma"]);
         let names: Vec<&str> = c.themes().iter().map(|t| t.meta.name.as_str()).collect();
         assert_eq!(names, vec!["Alpha", "Beta", "Gamma"]);
-    }
-
-    #[test]
-    fn themes_is_empty_for_empty_cursor() {
-        let c = ThemeCursor::<Theme>::new(vec![]);
-        assert!(c.themes().is_empty());
     }
 
     // --- with_builtins ---

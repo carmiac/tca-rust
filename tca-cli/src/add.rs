@@ -24,23 +24,23 @@ pub fn run(
     if all {
         return download_all_themes(&repo_url, &dir_path, &branch);
     }
-    if theme.is_none() || theme.as_ref().unwrap().is_empty() {
+    let Some(theme) = theme.as_ref().filter(|t| !t.is_empty()) else {
         return Err(anyhow!("Must either pass a theme name or --all."));
-    }
+    };
 
     // Try to find the given themes.
     // Search order for each theme is:
     // 1. Assume it is a path, which may be absolute or relative.
-    //    a. If the path is a directory, copy all of the toml files over.
-    //    b. If the path ends in toml, copy it over.
+    //    a. If the path is a directory, copy all of the yaml files over.
+    //    b. If the path ends in .yaml, copy it over.
     // 2. Remote repository.
     let theme_dir = tca_types::user_themes_path()?;
-    let themes: HashSet<&String> = HashSet::from_iter(theme.as_ref().unwrap());
+    let themes: HashSet<&String> = HashSet::from_iter(theme);
     let mut found_themes: HashSet<&String> = HashSet::new();
     for path in &themes {
         let theme_path = PathBuf::from(path);
         if theme_path.is_dir() {
-            // Copy all .toml files to user theme path.
+            // Copy all .yaml files to user theme path.
             for entry in WalkDir::new(theme_path)
                 .into_iter()
                 .filter_map(|e| e.ok())
@@ -53,7 +53,7 @@ pub fn run(
                 found_themes.insert(path);
             }
         } else if theme_path.extension().is_some_and(|ext| ext == "yaml") {
-            // Copy file to user theme path if it is a toml.
+            // Copy file to user theme path if it is a .yaml file.
             let dest = theme_dir.join(
                 theme_path
                     .file_name()

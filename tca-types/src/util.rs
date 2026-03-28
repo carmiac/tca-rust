@@ -25,7 +25,7 @@ pub fn user_themes_path() -> Result<PathBuf> {
 
 /// Get all themes from a given directory.
 #[cfg(feature = "fs")]
-pub fn all_from_dir(dir: &str) -> Vec<Theme> {
+pub fn all_from_dir(dir: &Path) -> Vec<Theme> {
     let mut items = Vec::new();
     if let Ok(entries) = fs::read_dir(dir) {
         for entry in entries {
@@ -36,7 +36,7 @@ pub fn all_from_dir(dir: &str) -> Vec<Theme> {
                 }
                 Ok(e) => e.path(),
             };
-            if path.is_file() & path.extension().is_some_and(|x| x == "yaml") {
+            if path.is_file() && path.extension().is_some_and(|x| x == "yaml") {
                 match fs::read_to_string(&path) {
                     Err(e) => {
                         eprintln!("Could not read: {:?}.\nError: {}", path, e);
@@ -62,7 +62,7 @@ pub fn all_user_themes() -> Vec<Theme> {
     let Ok(themes_dir) = user_themes_path() else {
         return Vec::new();
     };
-    all_from_dir(themes_dir.to_str().unwrap())
+    all_from_dir(&themes_dir)
 }
 
 /// Get a vec of all available themes.
@@ -89,7 +89,7 @@ pub fn all_themes() -> Vec<Theme> {
 
 /// Find a path to a theme by name.
 ///
-/// Converts name to kebab-case and searches for `<name>.toml` in the
+/// Converts name to kebab-case and searches for `<name>.yaml` in the
 /// themes directory.
 /// Returns the full path if found.
 #[cfg(feature = "fs")]
@@ -97,7 +97,7 @@ pub fn find_theme_path(name: &str) -> Result<PathBuf> {
     let themes_dir = user_themes_path()?;
 
     let name = heck::AsKebabCase(name).to_string();
-    // If no extension, also try with .toml appended
+    // If no extension, also try with .yaml appended
     let candidate = if !name.ends_with(".yaml") {
         themes_dir.join(format!("{}.yaml", name))
     } else {

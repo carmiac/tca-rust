@@ -156,7 +156,6 @@ pub struct Ansi {
     pub bright_white: String,
 }
 
-
 /// Semantic color roles (TOML section `[semantic]`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Semantic {
@@ -639,30 +638,18 @@ base17: "ff55ff"
     }
 
     #[test]
-    fn test_ansi_mapping() {
+    fn test_mapping() {
         let t = test_theme();
-        // Spec: black = base00, red = base08, white = base05
         assert_eq!(t.ansi.black, "#1a1a1a");
         assert_eq!(t.ansi.red, "#cc0000");
         assert_eq!(t.ansi.white, "#fafafa");
         assert_eq!(t.ansi.bright_black, "#666666"); // base03
         assert_eq!(t.ansi.bright_red, "#ff5555"); // base12
-    }
-
-    #[test]
-    fn test_semantic_mapping() {
-        let t = test_theme();
-        // Spec: error=base08, warning=base09, info=base0c, success=base0b
         assert_eq!(t.semantic.error, "#cc0000"); // base08
         assert_eq!(t.semantic.warning, "#ff8800"); // base09
         assert_eq!(t.semantic.info, "#00ffff"); // base0c
         assert_eq!(t.semantic.success, "#00ff00"); // base0b
         assert_eq!(t.semantic.link, "#0000ff"); // base0d
-    }
-
-    #[test]
-    fn test_ui_mapping() {
-        let t = test_theme();
         assert_eq!(t.ui.bg.primary, "#1a1a1a"); // base00
         assert_eq!(t.ui.bg.secondary, "#222222"); // base01
         assert_eq!(t.ui.fg.primary, "#fafafa"); // base05
@@ -690,14 +677,9 @@ base17: "ff55ff"
     }
 
     #[test]
-    fn test_name_slug() {
+    fn test_name_slug_and_filename() {
         let t = test_theme();
         assert_eq!(t.name_slug(), "test-theme");
-    }
-
-    #[test]
-    fn test_to_filename() {
-        let t = test_theme();
         assert_eq!(t.to_filename(), "test-theme.yaml");
     }
 
@@ -726,48 +708,25 @@ base17: "ff55ff"
     }
 
     #[test]
-    fn test_hex_to_rgb_with_hash() {
-        let (r, g, b) = hex_to_rgb("#ff5533").unwrap();
-        assert_eq!((r, g, b), (255, 85, 51));
+    fn test_hex_to_rgb_valid() {
+        // with and without '#' prefix
+        assert_eq!(hex_to_rgb("#ff5533").unwrap(), (255, 85, 51));
+        assert_eq!(hex_to_rgb("ff5533").unwrap(), (255, 85, 51));
+        // boundary values
+        assert_eq!(hex_to_rgb("#000000").unwrap(), (0, 0, 0));
+        assert_eq!(hex_to_rgb("#ffffff").unwrap(), (255, 255, 255));
     }
 
     #[test]
-    fn test_hex_to_rgb_without_hash() {
-        let (r, g, b) = hex_to_rgb("ff5533").unwrap();
-        assert_eq!((r, g, b), (255, 85, 51));
-    }
-
-    #[test]
-    fn test_hex_to_rgb_black() {
-        let (r, g, b) = hex_to_rgb("#000000").unwrap();
-        assert_eq!((r, g, b), (0, 0, 0));
-    }
-
-    #[test]
-    fn test_hex_to_rgb_white() {
-        let (r, g, b) = hex_to_rgb("#ffffff").unwrap();
-        assert_eq!((r, g, b), (255, 255, 255));
-    }
-
-    #[test]
-    fn test_hex_to_rgb_too_short() {
+    fn test_hex_to_rgb_invalid() {
+        // wrong length
         assert!(hex_to_rgb("#fff").is_err());
         assert!(hex_to_rgb("abc").is_err());
-    }
-
-    #[test]
-    fn test_hex_to_rgb_too_long() {
         assert!(hex_to_rgb("#ff5533aa").is_err());
-    }
-
-    #[test]
-    fn test_hex_to_rgb_invalid_chars() {
+        // bad chars
         assert!(hex_to_rgb("#gggggg").is_err());
         assert!(hex_to_rgb("#xyz123").is_err());
-    }
-
-    #[test]
-    fn test_hex_to_rgb_empty() {
+        // empty
         assert!(hex_to_rgb("").is_err());
         assert!(hex_to_rgb("#").is_err());
     }

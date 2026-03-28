@@ -105,22 +105,19 @@ fn test_builder_override_meta() {
 }
 
 #[test]
-fn test_theme_name_and_author() {
-    let theme = TcaThemeBuilder::new()
+fn test_theme_author() {
+    let theme_with_author = TcaThemeBuilder::new()
         .meta(Meta {
             name: "Nord Dark".to_string(),
             author: "Arctic Ice Studio".to_string(),
             ..Default::default()
         })
         .build();
-    assert_eq!(theme.meta.name, "Nord Dark");
-    assert_eq!(theme.meta.author, "Arctic Ice Studio");
-}
+    assert_eq!(theme_with_author.meta.name, "Nord Dark");
+    assert_eq!(theme_with_author.meta.author, "Arctic Ice Studio");
 
-#[test]
-fn test_theme_author_none() {
-    let theme = TcaThemeBuilder::new().build();
-    assert_eq!(theme.meta.author, "");
+    let theme_no_author = TcaThemeBuilder::new().build();
+    assert_eq!(theme_no_author.meta.author, "");
 }
 
 #[cfg(feature = "fs")]
