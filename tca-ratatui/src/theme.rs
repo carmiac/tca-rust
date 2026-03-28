@@ -119,30 +119,6 @@ impl Default for Ansi {
     }
 }
 
-/// A named color ramp, 0-indexed from darkest (index 0) to lightest.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct ColorRamp {
-    /// The resolved colors in this ramp, ordered darkest (index 0) to lightest.
-    pub colors: Vec<Color>,
-}
-
-impl ColorRamp {
-    /// Returns the color at the given 0-based index, or `None` if out of range.
-    pub fn get(&self, idx: usize) -> Option<Color> {
-        self.colors.get(idx).copied()
-    }
-
-    /// Returns the number of colors in the ramp.
-    pub fn len(&self) -> usize {
-        self.colors.len()
-    }
-
-    /// Returns `true` if the ramp contains no colors.
-    pub fn is_empty(&self) -> bool {
-        self.colors.is_empty()
-    }
-}
-
 /// Semantic color roles.
 ///
 /// The [`Default`] impl maps to Ratatui's named colors as a fallback.
@@ -351,11 +327,9 @@ impl TryFrom<tca_types::Theme> for TcaTheme {
             fg_primary: hex_to_color(&raw.ui.fg.primary).unwrap_or(defaults.fg_primary),
             fg_secondary: hex_to_color(&raw.ui.fg.secondary).unwrap_or(defaults.fg_secondary),
             fg_muted: hex_to_color(&raw.ui.fg.muted).unwrap_or(defaults.fg_muted),
-            border_primary: hex_to_color(&raw.ui.border.primary)
-                .unwrap_or(defaults.border_primary),
+            border_primary: hex_to_color(&raw.ui.border.primary).unwrap_or(defaults.border_primary),
             border_muted: hex_to_color(&raw.ui.border.muted).unwrap_or(defaults.border_muted),
-            cursor_primary: hex_to_color(&raw.ui.cursor.primary)
-                .unwrap_or(defaults.cursor_primary),
+            cursor_primary: hex_to_color(&raw.ui.cursor.primary).unwrap_or(defaults.cursor_primary),
             cursor_muted: hex_to_color(&raw.ui.cursor.muted).unwrap_or(defaults.cursor_muted),
             selection_bg: hex_to_color(&raw.ui.selection.bg).unwrap_or(defaults.selection_bg),
             selection_fg: hex_to_color(&raw.ui.selection.fg).unwrap_or(defaults.selection_fg),
@@ -363,12 +337,30 @@ impl TryFrom<tca_types::Theme> for TcaTheme {
 
         let s = &raw.base24;
         let base24 = [
-            c(&s.base00), c(&s.base01), c(&s.base02), c(&s.base03),
-            c(&s.base04), c(&s.base05), c(&s.base06), c(&s.base07),
-            c(&s.base08), c(&s.base09), c(&s.base0a), c(&s.base0b),
-            c(&s.base0c), c(&s.base0d), c(&s.base0e), c(&s.base0f),
-            c(&s.base10), c(&s.base11), c(&s.base12), c(&s.base13),
-            c(&s.base14), c(&s.base15), c(&s.base16), c(&s.base17),
+            c(&s.base00),
+            c(&s.base01),
+            c(&s.base02),
+            c(&s.base03),
+            c(&s.base04),
+            c(&s.base05),
+            c(&s.base06),
+            c(&s.base07),
+            c(&s.base08),
+            c(&s.base09),
+            c(&s.base0a),
+            c(&s.base0b),
+            c(&s.base0c),
+            c(&s.base0d),
+            c(&s.base0e),
+            c(&s.base0f),
+            c(&s.base10),
+            c(&s.base11),
+            c(&s.base12),
+            c(&s.base13),
+            c(&s.base14),
+            c(&s.base15),
+            c(&s.base16),
+            c(&s.base17),
         ];
 
         let meta = Meta {
@@ -377,7 +369,13 @@ impl TryFrom<tca_types::Theme> for TcaTheme {
             dark: raw.meta.dark,
         };
 
-        Ok(TcaTheme { meta, ansi, semantic, ui, base24 })
+        Ok(TcaTheme {
+            meta,
+            ansi,
+            semantic,
+            ui,
+            base24,
+        })
     }
 }
 
@@ -535,28 +533,32 @@ impl TcaThemeCursor {
     /// All built-in themes, resolved to [`TcaTheme`].
     /// Themes that fail to resolve are silently skipped.
     pub fn with_builtins() -> Self {
-        Self::new(
-            tca_types::BuiltinTheme::iter().filter_map(|b| TcaTheme::try_from(b.theme()).ok()),
-        )
+        let mut themes: Vec<TcaTheme> = tca_types::BuiltinTheme::iter()
+            .filter_map(|b| TcaTheme::try_from(b.theme()).ok())
+            .collect();
+        themes.sort();
+        Self::new(themes)
     }
 
     /// User-installed themes only, resolved to [`TcaTheme`].
     pub fn with_user_themes() -> Self {
-        Self::new(
-            tca_types::all_user_themes()
-                .into_iter()
-                .filter_map(|t| TcaTheme::try_from(t).ok()),
-        )
+        let mut themes: Vec<TcaTheme> = tca_types::all_user_themes()
+            .into_iter()
+            .filter_map(|t| TcaTheme::try_from(t).ok())
+            .collect();
+        themes.sort();
+        Self::new(themes)
     }
 
     /// Built-ins + user themes, resolved to [`TcaTheme`].
     /// User themes with matching names override builtins.
     pub fn with_all_themes() -> Self {
-        Self::new(
-            tca_types::all_themes()
-                .into_iter()
-                .filter_map(|t| TcaTheme::try_from(t).ok()),
-        )
+        let mut themes: Vec<TcaTheme> = tca_types::all_themes()
+            .into_iter()
+            .filter_map(|t| TcaTheme::try_from(t).ok())
+            .collect();
+        themes.sort();
+        Self::new(themes)
     }
 
     /// Returns the current theme without moving the cursor.

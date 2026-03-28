@@ -90,21 +90,27 @@ impl<T> ThemeCursor<T> {
 impl ThemeCursor<Theme> {
     /// All built-in themes.
     pub fn with_builtins() -> Self {
-        ThemeCursor::new(BuiltinTheme::iter().map(|b| b.theme()))
+        let mut themes: Vec<Theme> = BuiltinTheme::iter().map(|b| b.theme()).collect();
+        themes.sort();
+        ThemeCursor::new(themes)
     }
 
     /// User-installed themes only.
     #[cfg(feature = "fs")]
     pub fn with_user_themes() -> Self {
         use crate::all_user_themes;
-        ThemeCursor::new(all_user_themes())
+        let mut themes = all_user_themes();
+        themes.sort();
+        ThemeCursor::new(themes)
     }
 
     /// Built-ins + user themes. User themes with matching names override builtins.
     #[cfg(feature = "fs")]
     pub fn with_all_themes() -> Self {
         use crate::all_themes;
-        ThemeCursor::new(all_themes())
+        let mut themes = all_themes();
+        themes.sort();
+        ThemeCursor::new(themes)
     }
 
     /// Moves the cursor to the theme matching `name` (slug-insensitive) and returns it.
@@ -280,6 +286,15 @@ base17: "ad7fa8"
         let c = ThemeCursor::with_builtins();
         assert!(!c.is_empty());
         assert!(c.peek().is_some());
+    }
+
+    #[test]
+    fn with_builtins_is_sorted() {
+        let c = ThemeCursor::with_builtins();
+        let names: Vec<&str> = c.themes().iter().map(|t| t.meta.name.as_str()).collect();
+        let mut sorted = names.clone();
+        sorted.sort();
+        assert_eq!(names, sorted);
     }
 
     #[test]

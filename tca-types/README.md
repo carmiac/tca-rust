@@ -260,7 +260,7 @@ base17: "bb9af7"
 
 ```toml
 # Without file I/O (built-ins and YAML parsing still available)
-tca-types = { version = "0.5", default-features = false }
+tca-types = { version = "0.6", default-features = false }
 ```
 
 ## License

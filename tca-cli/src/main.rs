@@ -7,9 +7,9 @@ mod init;
 mod list;
 mod validate;
 
-pub const REPO: &str = "git@github.com:carmiac/tca-themes.git";
-pub const REPO_DIR: &str = "themes";
-pub const REPO_BRANCH: &str = "main";
+pub const REPO: &str = "git@github.com:tinted-theming/schemes.git";
+pub const REPO_DIR: &str = "base24";
+pub const REPO_BRANCH: &str = "spec-0.11";
 
 #[derive(Parser)]
 #[command(name = "tca")]

@@ -76,7 +76,7 @@ pub mod widgets;
 #[cfg(test)]
 mod tests;
 
-pub use theme::{Ansi, ColorRamp, Meta, Semantic, TcaTheme, TcaThemeBuilder, Ui};
+pub use theme::{Ansi, Meta, Semantic, TcaTheme, TcaThemeBuilder, Ui};
 
 #[cfg(feature = "fs")]
 pub use tca_types::ThemeCursor;

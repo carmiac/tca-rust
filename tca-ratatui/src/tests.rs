@@ -1,37 +1,6 @@
 use ratatui::style::Color;
 
-use crate::theme::{Ansi, ColorRamp, Meta, Semantic, TcaTheme, TcaThemeBuilder, Ui};
-
-#[test]
-fn test_color_ramp_get() {
-    let ramp = ColorRamp {
-        colors: vec![
-            Color::Rgb(10, 10, 10),
-            Color::Rgb(128, 128, 128),
-            Color::Rgb(245, 245, 245),
-        ],
-    };
-    assert_eq!(ramp.get(0), Some(Color::Rgb(10, 10, 10)));
-    assert_eq!(ramp.get(1), Some(Color::Rgb(128, 128, 128)));
-    assert_eq!(ramp.get(2), Some(Color::Rgb(245, 245, 245)));
-    assert_eq!(ramp.get(3), None); // out of bounds
-}
-
-#[test]
-fn test_color_ramp_len() {
-    let ramp = ColorRamp {
-        colors: vec![Color::Red, Color::DarkGray, Color::White],
-    };
-    assert_eq!(ramp.len(), 3);
-}
-
-#[test]
-fn test_color_ramp_empty() {
-    let ramp = ColorRamp::default();
-    assert!(ramp.is_empty());
-    assert_eq!(ramp.get(0), None);
-    assert_eq!(ramp.len(), 0);
-}
+use crate::theme::{Ansi, Meta, Semantic, TcaTheme, TcaThemeBuilder, Ui};
 
 #[test]
 fn test_ansi_default() {
@@ -234,4 +203,3 @@ base17: "b48ead"
         assert!(TcaTheme::try_from(yaml).is_err());
     }
 }
-
