@@ -2,7 +2,7 @@
 
 Core type definitions for Terminal Colors Architecture (TCA).
 
-Defines the `Theme` struct that TOML theme files deserialize into, color reference resolution, hex utilities, built-in themes, and a cycling cursor for navigating sets of themes.
+Parses [base24](https://github.com/tinted-theming/base24/) YAML theme files and derives the TCA semantic layer (ANSI, semantic, and UI color roles) from the base24 slot mappings defined in the [TCA specification](https://github.com/carmiac/tca-themes/blob/main/SPECIFICATION.md).
 
 ## Installation
 
@@ -12,12 +12,12 @@ cargo add tca-types
 
 ## Loading a Theme
 
-### From a TOML String
+### From a base24 YAML String
 
 ```rust
 use tca_types::Theme;
 
-let theme: Theme = toml::from_str(toml_str)?;
+let theme = Theme::from_base24_str(yaml_str)?;
 ```
 
 ### From a File or Theme Name (Requires `fs` Feature)
@@ -25,8 +25,8 @@ let theme: Theme = toml::from_str(toml_str)?;
 ```rust
 use tca_types::Theme;
 
-// Exact file path
-let theme = Theme::from_name(Some("~/.local/share/tca/themes/nord.toml"));
+// Exact file path to a base24 YAML file
+let theme = Theme::from_name(Some("~/.local/share/tca/themes/nord-dark.yaml"));
 
 // Theme name or slug — resolves user themes then built-ins
 let theme = Theme::from_name(Some("Tokyo Night"));
@@ -102,17 +102,43 @@ for theme in cursor.themes() {
 }
 ```
 
+## Accessing Colors
+
+All color fields on `Theme` contain resolved `#rrggbb` hex strings — no further resolution needed.
+
+```rust
+let theme = Theme::from_name(Some("Tokyo Night"));
+
+// Semantic colors
+println!("{}", theme.semantic.error);    // e.g. "#f7768e"
+println!("{}", theme.semantic.warning);  // e.g. "#ff9e64"
+println!("{}", theme.semantic.info);     // e.g. "#7dcfff"
+println!("{}", theme.semantic.success);  // e.g. "#9ece6a"
+println!("{}", theme.semantic.link);     // e.g. "#7aa2f7"
+
+// UI colors
+println!("{}", theme.ui.bg.primary);     // e.g. "#1a1b26"
+println!("{}", theme.ui.fg.primary);     // e.g. "#c0caf5"
+println!("{}", theme.ui.border.primary); // e.g. "#3b4261"
+
+// ANSI colors
+println!("{}", theme.ansi.red);          // e.g. "#f7768e"
+println!("{}", theme.ansi.bright_blue);  // e.g. "#7aa2f7"
+
+// Raw base24 slots for interoperability with other base24 tools
+println!("{}", theme.base24.base08);     // e.g. "#f7768e"
+```
+
 ## Resolving Color References
 
 ```rust
-let theme: Theme = toml::from_str(toml_str)?;
+// Resolve a direct hex passthrough
+let hex = theme.resolve("#ff0000");        // Some("#ff0000")
 
-// Resolve any reference format to #RRGGBB
-let hex = theme.resolve("palette.neutral.2"); // Some("#24283b")
-let hex = theme.resolve("ansi.bright_red");   // Some("#f7768e")
-let hex = theme.resolve("base16.base08");     // Some("#f7768e")
-let hex = theme.resolve("#ff0000");           // Some("#ff0000")
-let hex = theme.resolve("ansi.unknown");      // None
+// Resolve a base24 slot reference (case-insensitive)
+let hex = theme.resolve("base24.base08"); // Some("#f7768e")
+let hex = theme.resolve("base24.BASE0E"); // Some("#bb9af7")
+let hex = theme.resolve("base24.unknown"); // None
 ```
 
 ## Hex Utilities
@@ -128,26 +154,87 @@ let (r, g, b) = hex_to_rgb("ff5533")?;  // also works without #
 
 ```
 Theme
-├── meta     (required) — name, slug, author, version, description, dark
-├── ansi     (required) — 16 direct #RRGGBB values: black … bright_white
-├── semantic (required) — error, warning, info, success, highlight, link
-├── ui       (required) — bg, fg, border, cursor, selection (each with sub-fields)
-├── palette  (optional) — named color ramps, e.g. neutral = ["#111", "#222", …]
-└── base16   (optional) — base00–base0F mappings
+├── meta     — name, author, dark (bool, derived from luminance)
+├── ansi     — 16 #rrggbb values: black … bright_white  (derived from base24)
+├── semantic — error, warning, info, success, highlight, link  (derived from base24)
+├── ui       — bg, fg, border, cursor, selection  (derived from base24)
+└── base24   — raw slots base00–base17 for direct interoperability
 ```
 
-## Color Reference Formats
+## Theme File Format
 
-Fields outside `[ansi]` may use any of these formats:
+TCA themes are [base24](https://github.com/tinted-theming/base24/) YAML files.
 
-| Format            | Example             | Resolves via                   |
-| ----------------- | ------------------- | ------------------------------ |
-| Direct hex        | `#ff0000`           | returned as-is                 |
-| ANSI reference    | `ansi.bright_red`   | `[ansi]` section               |
-| Palette reference | `palette.neutral.2` | `[palette]` section (0-based)  |
-| Base16 reference  | `base16.base08`     | `[base16]` section (recursive) |
+**File naming:** `kebab-case.yaml`  
+**Install location:** `$XDG_DATA_HOME/tca/themes/` (default: `~/.local/share/tca/themes/`)
 
-`[ansi]` values must always be direct `#RRGGBB` hex — references are not allowed there.
+```yaml
+scheme: "Tokyo Night"
+author: "Enkia"
+variant: "dark"
+base00: "1a1b26"
+base01: "16161e"
+base02: "2f3549"
+base03: "444b6a"
+base04: "787c99"
+base05: "a9b1d6"
+base06: "cbccd1"
+base07: "d5d6db"
+base08: "f7768e"
+base09: "ff9e64"
+base0A: "e0af68"
+base0B: "9ece6a"
+base0C: "7dcfff"
+base0D: "7aa2f7"
+base0E: "bb9af7"
+base0F: "f7768e"
+base10: "1a1b26"
+base11: "000000"
+base12: "ff7a93"
+base13: "ffd479"
+base14: "b9f27c"
+base15: "7da6ff"
+base16: "7da6ff"
+base17: "bb9af7"
+```
+
+## Base24 → TCA Mapping
+
+| TCA field             | base24 slot |
+| --------------------- | ----------- |
+| `ansi.black`          | base00      |
+| `ansi.red`            | base08      |
+| `ansi.green`          | base0b      |
+| `ansi.yellow`         | base0a      |
+| `ansi.blue`           | base0d      |
+| `ansi.magenta`        | base0e      |
+| `ansi.cyan`           | base0c      |
+| `ansi.white`          | base05      |
+| `ansi.bright_black`   | base03      |
+| `ansi.bright_red`     | base12      |
+| `ansi.bright_green`   | base14      |
+| `ansi.bright_yellow`  | base13      |
+| `ansi.bright_blue`    | base16      |
+| `ansi.bright_magenta` | base17      |
+| `ansi.bright_cyan`    | base15      |
+| `ansi.bright_white`   | base07      |
+| `semantic.error`      | base08      |
+| `semantic.warning`    | base09      |
+| `semantic.info`       | base0c      |
+| `semantic.success`    | base0b      |
+| `semantic.highlight`  | base0e      |
+| `semantic.link`       | base0d      |
+| `ui.bg.primary`       | base00      |
+| `ui.bg.secondary`     | base01      |
+| `ui.fg.primary`       | base05      |
+| `ui.fg.secondary`     | base06      |
+| `ui.fg.muted`         | base04      |
+| `ui.border.primary`   | base02      |
+| `ui.border.muted`     | base01      |
+| `ui.cursor.primary`   | base05      |
+| `ui.cursor.muted`     | base04      |
+| `ui.selection.bg`     | base02      |
+| `ui.selection.fg`     | base05      |
 
 ## Built-in Themes
 
@@ -172,8 +259,8 @@ Fields outside `[ansi]` may use any of these formats:
 | `fs` | enabled | File I/O, `Theme::from_name`, `all_themes`, `ThemeCursor::with_user_themes` / `with_all_themes` |
 
 ```toml
-# Without file I/O (built-ins and TOML parsing still available)
-tca-types = { version = "0.4", default-features = false }
+# Without file I/O (built-ins and YAML parsing still available)
+tca-types = { version = "0.5", default-features = false }
 ```
 
 ## License

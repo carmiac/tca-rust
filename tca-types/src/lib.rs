@@ -5,6 +5,7 @@
 
 #![warn(missing_docs)]
 
+pub mod base24;
 mod builtin;
 mod cursor;
 mod theme;
@@ -13,7 +14,7 @@ mod util;
 pub use builtin::BuiltinTheme;
 pub use cursor::ThemeCursor;
 pub use theme::{
-    hex_to_rgb, Ansi, Base16, HexColorError, Meta, Palette, Semantic, Theme, Ui, UiBg, UiBorder,
+    hex_to_rgb, Ansi, Base24Slots, HexColorError, Meta, Semantic, Theme, Ui, UiBg, UiBorder,
     UiCursor, UiFg, UiSelection,
 };
 

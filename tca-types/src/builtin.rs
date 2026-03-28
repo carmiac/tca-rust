@@ -49,20 +49,20 @@ impl BuiltinTheme {
     /// Get the actual Theme from the Enum.
     pub fn theme(self) -> Theme {
         let src = match self {
-            BuiltinTheme::CatppuccinMocha => include_str!("themes/catppuccin-mocha.toml"),
-            BuiltinTheme::Cyberpunk => include_str!("themes/cyberpunk.toml"),
-            BuiltinTheme::Dracula => include_str!("themes/dracula.toml"),
-            BuiltinTheme::EverforestDark => include_str!("themes/everforest-dark.toml"),
-            BuiltinTheme::GruvboxDark => include_str!("themes/gruvbox-dark.toml"),
-            BuiltinTheme::Mono => include_str!("themes/mono.toml"),
-            BuiltinTheme::Nord => include_str!("themes/nord-dark.toml"),
-            BuiltinTheme::OneDark => include_str!("themes/one-dark.toml"),
-            BuiltinTheme::RosePine => include_str!("themes/rose-pine.toml"),
-            BuiltinTheme::SolarizedLight => include_str!("themes/solarized-light.toml"),
-            BuiltinTheme::TokyoNight => include_str!("themes/tokyo-night.toml"),
+            BuiltinTheme::CatppuccinMocha => include_str!("themes/catppuccin-mocha.yaml"),
+            BuiltinTheme::Cyberpunk => include_str!("themes/cyberpunk.yaml"),
+            BuiltinTheme::Dracula => include_str!("themes/dracula.yaml"),
+            BuiltinTheme::EverforestDark => include_str!("themes/everforest-dark.yaml"),
+            BuiltinTheme::GruvboxDark => include_str!("themes/gruvbox-dark.yaml"),
+            BuiltinTheme::Mono => include_str!("themes/mono.yaml"),
+            BuiltinTheme::Nord => include_str!("themes/nord-dark.yaml"),
+            BuiltinTheme::OneDark => include_str!("themes/one-dark.yaml"),
+            BuiltinTheme::RosePine => include_str!("themes/rose-pine.yaml"),
+            BuiltinTheme::SolarizedLight => include_str!("themes/solarized-light.yaml"),
+            BuiltinTheme::TokyoNight => include_str!("themes/tokyo-night.yaml"),
         };
 
-        toml::from_str(src).expect("Built in theme TOML is invalid.")
+        Theme::from_base24_str(src).expect("Built in base24 YAML is invalid.")
     }
 
     /// Returns a nice default light Theme.

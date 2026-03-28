@@ -36,13 +36,13 @@ pub fn all_from_dir(dir: &str) -> Vec<Theme> {
                 }
                 Ok(e) => e.path(),
             };
-            if path.is_file() & path.extension().is_some_and(|x| x == "toml") {
+            if path.is_file() & path.extension().is_some_and(|x| x == "yaml") {
                 match fs::read_to_string(&path) {
                     Err(e) => {
                         eprintln!("Could not read: {:?}.\nError: {}", path, e);
                         continue;
                     }
-                    Ok(theme_str) => match toml::from_str(&theme_str) {
+                    Ok(theme_str) => match Theme::from_base24_str(&theme_str) {
                         Err(e) => {
                             eprintln!("Could not parse: {:?}.\nError: {}", path, e);
                             continue;
@@ -98,8 +98,8 @@ pub fn find_theme_path(name: &str) -> Result<PathBuf> {
 
     let name = heck::AsKebabCase(name).to_string();
     // If no extension, also try with .toml appended
-    let candidate = if !name.ends_with(".toml") {
-        themes_dir.join(format!("{}.toml", name))
+    let candidate = if !name.ends_with(".yaml") {
+        themes_dir.join(format!("{}.yaml", name))
     } else {
         themes_dir.join(&name)
     };
