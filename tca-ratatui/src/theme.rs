@@ -1,7 +1,6 @@
 #[cfg(feature = "fs")]
 use anyhow::{Context, Result};
 use ratatui::style::Color;
-use std::collections::HashMap;
 #[cfg(feature = "fs")]
 use std::path::PathBuf;
 
@@ -13,24 +12,18 @@ use tca_types::BuiltinTheme;
 pub struct Meta {
     /// Human-readable theme name.
     pub name: String,
-    /// Theme author name or contact.
-    pub author: Option<String>,
-    /// Semantic version string (e.g. `"1.0.0"`).
-    pub version: Option<String>,
-    /// Short description of the theme.
-    pub description: Option<String>,
+    /// Theme author name or contact. Empty string if not specified.
+    pub author: String,
     /// `true` for dark themes, `false` for light themes.
-    pub dark: Option<bool>,
+    pub dark: bool,
 }
 
 impl Default for Meta {
     fn default() -> Self {
         Self {
             name: "Unnamed Theme".to_string(),
-            author: None,
-            version: None,
-            description: None,
-            dark: None,
+            author: String::new(),
+            dark: false,
         }
     }
 }
@@ -150,47 +143,6 @@ impl ColorRamp {
     }
 }
 
-/// Color palette of named hue ramps (`[palette]` section).
-///
-/// All ramps are 0-indexed and ordered darkest → lightest.
-/// An absent `[palette]` section deserializes to an empty palette.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct Palette(pub(crate) HashMap<String, ColorRamp>);
-
-impl Palette {
-    /// Returns the named ramp, or `None` if it doesn't exist.
-    pub fn get_ramp(&self, name: &str) -> Option<&ColorRamp> {
-        self.0.get(name)
-    }
-
-    /// Returns all ramp names in sorted order.
-    pub fn ramp_names(&self) -> Vec<&str> {
-        let mut names: Vec<&str> = self.0.keys().map(String::as_str).collect();
-        names.sort();
-        names
-    }
-}
-
-/// Base16 color mappings (`base00`–`base0F`).
-///
-/// An absent `[base16]` section deserializes to an empty map.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct Base16(pub(crate) HashMap<String, Color>);
-
-impl Base16 {
-    /// Returns the resolved color for the given Base16 key, or `None`.
-    pub fn get(&self, key: &str) -> Option<Color> {
-        self.0.get(key).copied()
-    }
-
-    /// Iterates over all `(key, color)` pairs in sorted key order.
-    pub fn entries(&self) -> impl Iterator<Item = (&str, Color)> {
-        let mut pairs: Vec<(&str, Color)> = self.0.iter().map(|(k, &v)| (k.as_str(), v)).collect();
-        pairs.sort_by_key(|(k, _)| *k);
-        pairs.into_iter()
-    }
-}
-
 /// Semantic color roles.
 ///
 /// The [`Default`] impl maps to Ratatui's named colors as a fallback.
@@ -276,21 +228,19 @@ impl Default for Ui {
 /// A fully resolved TCA theme with Ratatui-compatible colors.
 ///
 /// All color references have been resolved to concrete [`Color`] values.
-/// Construct via [`TcaThemeBuilder`] or the `from_file`/`from_toml` methods.
+/// Construct via [`TcaThemeBuilder`] or by loading a base24 YAML file.
 #[derive(Debug, Clone)]
 pub struct TcaTheme {
-    /// Theme metadata (name, author, version, etc.).
+    /// Theme metadata (name, author, dark).
     pub meta: Meta,
     /// Resolved ANSI 16-color definitions.
     pub ansi: Ansi,
-    /// Resolved palette ramps. Empty if the theme has no `[palette]` section.
-    pub palette: Palette,
-    /// Resolved Base16 mappings. Empty if the theme has no `[base16]` section.
-    pub base16: Base16,
     /// Resolved semantic color roles.
     pub semantic: Semantic,
     /// Resolved UI element colors.
     pub ui: Ui,
+    /// Raw base24 slot colors: index 0 = base00, index 23 = base17.
+    pub base24: [Color; 24],
 }
 
 impl TcaTheme {
@@ -329,12 +279,12 @@ impl TcaTheme {
 
     /// Returns the canonical file name for the theme.
     ///
-    /// This is the kebab-case name + '.toml'
-    /// e.g. "Tokyo Night" => "tokyo-night.toml"
+    /// This is the kebab-case name + '.yaml'
+    /// e.g. "Tokyo Night" => "tokyo-night.yaml"
     pub fn to_filename(&self) -> String {
         let mut theme_name = self.name_slug();
-        if !theme_name.ends_with(".toml") {
-            theme_name.push_str(".toml");
+        if !theme_name.ends_with(".yaml") {
+            theme_name.push_str(".yaml");
         }
         theme_name
     }
@@ -362,11 +312,11 @@ impl Default for TcaTheme {
 }
 
 #[cfg(feature = "fs")]
-/// Load a TcaTheme from a TOML string.
+/// Load a TcaTheme from a base24 YAML string.
 impl TryFrom<&str> for TcaTheme {
     type Error = anyhow::Error;
     fn try_from(value: &str) -> Result<TcaTheme, Self::Error> {
-        let raw: tca_types::Theme = toml::from_str(value)?;
+        let raw = tca_types::Theme::from_base24_str(value)?;
         TcaTheme::try_from(raw)
     }
 }
@@ -380,56 +330,54 @@ impl TryFrom<&str> for TcaTheme {
 impl TryFrom<tca_types::Theme> for TcaTheme {
     type Error = anyhow::Error;
     fn try_from(raw: tca_types::Theme) -> Result<TcaTheme, Self::Error> {
-        // ANSI is required and hex-only; hard error on bad hex.
         let ansi = parse_ansi(&raw.ansi)?;
 
-        // Palette and Base16 are optional; absent sections -> empty defaults.
-        let palette = parse_palette(raw.palette.as_ref(), &raw.ansi);
-        let base16 = parse_base16(raw.base16.as_ref(), &raw.ansi, &palette);
-
-        let resolve = |r: &str| resolve_ref(r, &ansi, &palette, &base16);
+        let c = |hex: &str| hex_to_color(hex).unwrap_or(Color::Reset);
 
         let defaults = Semantic::default();
         let semantic = Semantic {
-            error: resolve(&raw.semantic.error).unwrap_or(defaults.error),
-            warning: resolve(&raw.semantic.warning).unwrap_or(defaults.warning),
-            info: resolve(&raw.semantic.info).unwrap_or(defaults.info),
-            success: resolve(&raw.semantic.success).unwrap_or(defaults.success),
-            highlight: resolve(&raw.semantic.highlight).unwrap_or(defaults.highlight),
-            link: resolve(&raw.semantic.link).unwrap_or(defaults.link),
+            error: hex_to_color(&raw.semantic.error).unwrap_or(defaults.error),
+            warning: hex_to_color(&raw.semantic.warning).unwrap_or(defaults.warning),
+            info: hex_to_color(&raw.semantic.info).unwrap_or(defaults.info),
+            success: hex_to_color(&raw.semantic.success).unwrap_or(defaults.success),
+            highlight: hex_to_color(&raw.semantic.highlight).unwrap_or(defaults.highlight),
+            link: hex_to_color(&raw.semantic.link).unwrap_or(defaults.link),
         };
 
         let defaults = Ui::default();
         let ui = Ui {
-            bg_primary: resolve(&raw.ui.bg.primary).unwrap_or(defaults.bg_primary),
-            bg_secondary: resolve(&raw.ui.bg.secondary).unwrap_or(defaults.bg_secondary),
-            fg_primary: resolve(&raw.ui.fg.primary).unwrap_or(defaults.fg_primary),
-            fg_secondary: resolve(&raw.ui.fg.secondary).unwrap_or(defaults.fg_secondary),
-            fg_muted: resolve(&raw.ui.fg.muted).unwrap_or(defaults.fg_muted),
-            border_primary: resolve(&raw.ui.border.primary).unwrap_or(defaults.border_primary),
-            border_muted: resolve(&raw.ui.border.muted).unwrap_or(defaults.border_muted),
-            cursor_primary: resolve(&raw.ui.cursor.primary).unwrap_or(defaults.cursor_primary),
-            cursor_muted: resolve(&raw.ui.cursor.muted).unwrap_or(defaults.cursor_muted),
-            selection_bg: resolve(&raw.ui.selection.bg).unwrap_or(defaults.selection_bg),
-            selection_fg: resolve(&raw.ui.selection.fg).unwrap_or(defaults.selection_fg),
+            bg_primary: hex_to_color(&raw.ui.bg.primary).unwrap_or(defaults.bg_primary),
+            bg_secondary: hex_to_color(&raw.ui.bg.secondary).unwrap_or(defaults.bg_secondary),
+            fg_primary: hex_to_color(&raw.ui.fg.primary).unwrap_or(defaults.fg_primary),
+            fg_secondary: hex_to_color(&raw.ui.fg.secondary).unwrap_or(defaults.fg_secondary),
+            fg_muted: hex_to_color(&raw.ui.fg.muted).unwrap_or(defaults.fg_muted),
+            border_primary: hex_to_color(&raw.ui.border.primary)
+                .unwrap_or(defaults.border_primary),
+            border_muted: hex_to_color(&raw.ui.border.muted).unwrap_or(defaults.border_muted),
+            cursor_primary: hex_to_color(&raw.ui.cursor.primary)
+                .unwrap_or(defaults.cursor_primary),
+            cursor_muted: hex_to_color(&raw.ui.cursor.muted).unwrap_or(defaults.cursor_muted),
+            selection_bg: hex_to_color(&raw.ui.selection.bg).unwrap_or(defaults.selection_bg),
+            selection_fg: hex_to_color(&raw.ui.selection.fg).unwrap_or(defaults.selection_fg),
         };
+
+        let s = &raw.base24;
+        let base24 = [
+            c(&s.base00), c(&s.base01), c(&s.base02), c(&s.base03),
+            c(&s.base04), c(&s.base05), c(&s.base06), c(&s.base07),
+            c(&s.base08), c(&s.base09), c(&s.base0a), c(&s.base0b),
+            c(&s.base0c), c(&s.base0d), c(&s.base0e), c(&s.base0f),
+            c(&s.base10), c(&s.base11), c(&s.base12), c(&s.base13),
+            c(&s.base14), c(&s.base15), c(&s.base16), c(&s.base17),
+        ];
 
         let meta = Meta {
             name: raw.meta.name,
             author: raw.meta.author,
-            version: raw.meta.version,
-            description: raw.meta.description,
             dark: raw.meta.dark,
         };
 
-        Ok(TcaTheme {
-            meta,
-            ansi,
-            palette,
-            base16,
-            semantic,
-            ui,
-        })
+        Ok(TcaTheme { meta, ansi, semantic, ui, base24 })
     }
 }
 
@@ -477,8 +425,6 @@ impl Ord for TcaTheme {
 pub struct TcaThemeBuilder {
     meta: Meta,
     ansi: Ansi,
-    palette: Palette,
-    base16: Base16,
     semantic: Semantic,
     ui: Ui,
 }
@@ -501,18 +447,6 @@ impl TcaThemeBuilder {
         self
     }
 
-    /// Set the color palette ramps.
-    pub fn palette(mut self, palette: Palette) -> Self {
-        self.palette = palette;
-        self
-    }
-
-    /// Set the Base16 color mappings.
-    pub fn base16(mut self, base16: Base16) -> Self {
-        self.base16 = base16;
-        self
-    }
-
     /// Set the semantic color roles.
     pub fn semantic(mut self, semantic: Semantic) -> Self {
         self.semantic = semantic;
@@ -530,10 +464,9 @@ impl TcaThemeBuilder {
         TcaTheme {
             meta: self.meta,
             ansi: self.ansi,
-            palette: self.palette,
-            base16: self.base16,
             semantic: self.semantic,
             ui: self.ui,
+            base24: [Color::Reset; 24],
         }
     }
 }
@@ -545,34 +478,12 @@ fn hex_to_color(hex: &str) -> Option<Color> {
     Some(Color::Rgb(r, g, b))
 }
 
-/// Resolve a color reference string to a [`Color`].
-///
-/// Supported formats: `#RRGGBB`, `ansi.<key>`, `palette.<ramp>.<index>`, `base16.<key>`.
-/// Returns `None` if the reference cannot be resolved.
-#[cfg(feature = "fs")]
-fn resolve_ref(r: &str, ansi: &Ansi, palette: &Palette, base16: &Base16) -> Option<Color> {
-    if r.starts_with('#') {
-        return hex_to_color(r);
-    }
-
-    let parts: Vec<&str> = r.splitn(3, '.').collect();
-    match parts.as_slice() {
-        ["ansi", key] => ansi.get(key),
-        ["palette", ramp, idx_str] => {
-            let idx: usize = idx_str.parse().ok()?;
-            palette.get_ramp(ramp)?.get(idx)
-        }
-        ["base16", key] => base16.get(key),
-        _ => None,
-    }
-}
-
 /// Parse a raw [`tca_types::Ansi`] into a resolved [`Ansi`].
-/// Returns an error if any hex color is malformed (spec requires hex-only in `[ansi]`).
+/// Returns an error if any hex color is malformed.
 #[cfg(feature = "fs")]
 fn parse_ansi(raw: &tca_types::Ansi) -> Result<Ansi> {
     let p = |hex: &str| -> Result<Color> {
-        hex_to_color(hex).with_context(|| format!("Invalid hex color in [ansi]: {:?}", hex))
+        hex_to_color(hex).with_context(|| format!("Invalid hex color in ansi: {:?}", hex))
     };
     Ok(Ansi {
         black: p(&raw.black)?,
@@ -592,74 +503,6 @@ fn parse_ansi(raw: &tca_types::Ansi) -> Result<Ansi> {
         bright_cyan: p(&raw.bright_cyan)?,
         bright_white: p(&raw.bright_white)?,
     })
-}
-
-/// Parse a raw [`tca_types::Palette`] into a resolved [`Palette`].
-/// Palette values may be `#RRGGBB` hex or `ansi.<key>` references.
-/// Values that cannot be resolved are silently skipped.
-#[cfg(feature = "fs")]
-fn parse_palette(raw: Option<&tca_types::Palette>, raw_ansi: &tca_types::Ansi) -> Palette {
-    let Some(raw_palette) = raw else {
-        return Palette::default();
-    };
-
-    let ramps = raw_palette
-        .entries()
-        .map(|(name, values)| {
-            let colors = values
-                .iter()
-                .filter_map(|v| {
-                    if v.starts_with('#') {
-                        hex_to_color(v)
-                    } else if let Some(key) = v.strip_prefix("ansi.") {
-                        hex_to_color(raw_ansi.get(key)?)
-                    } else {
-                        None
-                    }
-                })
-                .collect();
-            (name.to_string(), ColorRamp { colors })
-        })
-        .collect();
-
-    Palette(ramps)
-}
-
-/// Parse a raw [`tca_types::Base16`] into a resolved [`Base16`].
-/// Values may be `#RRGGBB`, `ansi.<key>`, or `palette.<ramp>.<index>`.
-/// Values that cannot be resolved are silently skipped.
-#[cfg(feature = "fs")]
-fn parse_base16(
-    raw: Option<&tca_types::Base16>,
-    raw_ansi: &tca_types::Ansi,
-    palette: &Palette,
-) -> Base16 {
-    let Some(raw_b16) = raw else {
-        return Base16::default();
-    };
-
-    let map = raw_b16
-        .entries()
-        .filter_map(|(key, value)| {
-            let color = if value.starts_with('#') {
-                hex_to_color(value)?
-            } else if let Some(k) = value.strip_prefix("ansi.") {
-                hex_to_color(raw_ansi.get(k)?)?
-            } else {
-                let parts: Vec<&str> = value.splitn(3, '.').collect();
-                match parts.as_slice() {
-                    ["palette", ramp, idx_str] => {
-                        let idx: usize = idx_str.parse().ok()?;
-                        palette.get_ramp(ramp)?.get(idx)?
-                    }
-                    _ => return None,
-                }
-            };
-            Some((key.to_string(), color))
-        })
-        .collect();
-
-    Base16(map)
 }
 
 /// A cycling cursor over resolved [`TcaTheme`] values.

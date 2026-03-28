@@ -8,21 +8,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let theme_path: Option<&str> = arg.as_deref();
 
     if theme_path.is_none() {
-        return Err("Usage: basic path/to/theme.toml".into());
+        return Err("Usage: basic path/to/theme.yaml".into());
     }
     println!("Loading TCA theme from: {:?}", theme_path);
     let theme = TcaTheme::new(theme_path);
 
     println!("\nTheme: {}", theme.meta.name);
-    if let Some(author) = theme.meta.author {
-        println!("Author: {}", author);
-    }
-
-    println!("\nPalette:");
-    for name in theme.palette.ramp_names() {
-        if let Some(ramp) = theme.palette.get_ramp(name) {
-            println!("  {}: {} entries", name, ramp.len());
+        if !theme.meta.author.is_empty() {
+            println!("Author: {}", theme.meta.author);
         }
+
+    println!("\nBase24 Slots:");
+    for (i, &color) in theme.base24.iter().enumerate() {
+        println!("  base{:02x}: {:?}", i, color);
     }
 
     println!("\nANSI Colors:");

@@ -6,7 +6,7 @@
 #![warn(missing_docs)]
 #[cfg(feature = "fs")]
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 #[cfg(feature = "fs")]
 use std::path::PathBuf;
 
@@ -35,7 +35,7 @@ impl From<std::num::ParseIntError> for HexColorError {
 ///
 /// These are the canonical values from which all TCA semantic fields are derived.
 /// base16-only themes leave base10–base17 set to their spec-defined fallbacks.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Base24Slots {
     /// Darkest background / ANSI black background.
     pub base00: String,
@@ -105,13 +105,12 @@ pub struct Theme {
 }
 
 /// Theme metadata.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Meta {
     /// Human-readable theme name.
     pub name: String,
-    /// Theme author name or contact.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub author: Option<String>,
+    /// Theme author name or contact. Empty string if not specified.
+    pub author: String,
     /// `true` for dark themes, `false` for light themes.
     ///
     /// Derived from the luminance of `bg.primary` (base00 vs base07).
@@ -121,7 +120,7 @@ pub struct Meta {
 /// ANSI 16-color definitions, derived from base24 slots per the TCA spec.
 ///
 /// All values are resolved `#rrggbb` hex strings.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Ansi {
     /// ANSI color 0 — black.
     pub black: String,
@@ -157,35 +156,9 @@ pub struct Ansi {
     pub bright_white: String,
 }
 
-impl Ansi {
-    /// Return the hex color string for the given ANSI key name (e.g. `"red"`, `"bright_black"`).
-    ///
-    /// Returns `None` for unknown key names.
-    pub fn get(&self, key: &str) -> Option<&str> {
-        match key {
-            "black" => Some(&self.black),
-            "red" => Some(&self.red),
-            "green" => Some(&self.green),
-            "yellow" => Some(&self.yellow),
-            "blue" => Some(&self.blue),
-            "magenta" => Some(&self.magenta),
-            "cyan" => Some(&self.cyan),
-            "white" => Some(&self.white),
-            "bright_black" => Some(&self.bright_black),
-            "bright_red" => Some(&self.bright_red),
-            "bright_green" => Some(&self.bright_green),
-            "bright_yellow" => Some(&self.bright_yellow),
-            "bright_blue" => Some(&self.bright_blue),
-            "bright_magenta" => Some(&self.bright_magenta),
-            "bright_cyan" => Some(&self.bright_cyan),
-            "bright_white" => Some(&self.bright_white),
-            _ => None,
-        }
-    }
-}
 
 /// Semantic color roles (TOML section `[semantic]`).
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Semantic {
     /// Color for error states.
     pub error: String,
@@ -202,7 +175,7 @@ pub struct Semantic {
 }
 
 /// Background colors (nested under `[ui.bg]`).
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct UiBg {
     /// Primary application background.
     pub primary: String,
@@ -211,7 +184,7 @@ pub struct UiBg {
 }
 
 /// Foreground colors (nested under `[ui.fg]`).
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct UiFg {
     /// Primary text color.
     pub primary: String,
@@ -222,7 +195,7 @@ pub struct UiFg {
 }
 
 /// Border colors (nested under `[ui.border]`).
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct UiBorder {
     /// Active / focused border color.
     pub primary: String,
@@ -231,7 +204,7 @@ pub struct UiBorder {
 }
 
 /// Cursor colors (nested under `[ui.cursor]`).
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct UiCursor {
     /// Active cursor color.
     pub primary: String,
@@ -240,7 +213,7 @@ pub struct UiCursor {
 }
 
 /// Selection colors (nested under `[ui.selection]`).
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct UiSelection {
     /// Selection background.
     pub bg: String,
@@ -249,7 +222,7 @@ pub struct UiSelection {
 }
 
 /// UI element colors (TOML section `[ui]` with nested sub-tables).
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Ui {
     /// Background colors (`[ui.bg]`).
     pub bg: UiBg,
@@ -271,7 +244,7 @@ impl Theme {
         Theme {
             meta: Meta {
                 name,
-                author: None,
+                author: String::new(),
                 dark,
             },
             ansi: Ansi {
@@ -415,7 +388,7 @@ impl Theme {
             .or_else(|| slots.get("name"))
             .cloned()
             .unwrap_or_else(|| "Imported Theme".to_string());
-        let author = slots.get("author").cloned();
+        let author = slots.get("author").cloned().unwrap_or_default();
 
         let raw = Base24Slots {
             base00,
@@ -525,7 +498,7 @@ impl Theme {
     pub fn to_base24_str(&self) -> String {
         let h = |s: &str| s.trim_start_matches('#').to_lowercase();
         let variant = if self.meta.dark { "dark" } else { "light" };
-        let author = self.meta.author.as_deref().unwrap_or("Unknown");
+        let author = &self.meta.author;
         let s = &self.base24;
         format!(
             "scheme: \"{name}\"\nauthor: \"{author}\"\nvariant: \"{variant}\"\n\
@@ -656,7 +629,7 @@ base17: "ff55ff"
     fn test_from_base24_str_name_and_author() {
         let t = test_theme();
         assert_eq!(t.meta.name, "Test Theme");
-        assert_eq!(t.meta.author.as_deref(), Some("Test Author"));
+        assert_eq!(t.meta.author, "Test Author");
     }
 
     #[test]
