@@ -14,9 +14,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let theme = TcaTheme::new(theme_path);
 
     println!("\nTheme: {}", theme.meta.name);
-        if !theme.meta.author.is_empty() {
-            println!("Author: {}", theme.meta.author);
-        }
+    if !theme.meta.author.is_empty() {
+        println!("Author: {}", theme.meta.author);
+    }
 
     println!("\nBase24 Slots:");
     for (i, &color) in theme.base24.iter().enumerate() {
