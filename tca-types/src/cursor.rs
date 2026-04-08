@@ -73,6 +73,11 @@ impl<T> ThemeCursor<T> {
         self.themes.is_empty()
     }
 
+    /// Returns the current cursor index.
+    pub fn index(&self) -> usize {
+        self.index
+    }
+
     /// Moves the cursor to `index` and returns the theme at that position.
     ///
     /// Returns `None` if `index` is out of bounds.

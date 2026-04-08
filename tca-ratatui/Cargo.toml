@@ -18,7 +18,6 @@ tca-types = { workspace = true, optional = true }
 serde = { workspace = true }
 anyhow = { workspace = true }
 ratatui = { workspace = true }
-terminal-colorsaurus = { workspace = true, optional = true }
 heck.workspace = true
 
 [dev-dependencies]
@@ -26,11 +25,15 @@ crossterm = { workspace = true }
 
 [features]
 default = ["fs", "widgets"]
-fs = ["dep:tca-types", "dep:terminal-colorsaurus"]
+fs = ["dep:tca-types"]
 widgets = []
 
 [[example]]
 name = "basic"
+required-features = ["fs"]
+
+[[example]]
+name = "styleset"
 required-features = ["fs"]
 
 [[example]]

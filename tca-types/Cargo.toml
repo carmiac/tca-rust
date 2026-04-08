@@ -21,7 +21,6 @@ toml = { workspace = true }
 heck = { workspace = true }
 anyhow = { workspace = true }
 etcetera = { workspace = true, optional = true }
-terminal-colorsaurus = { workspace = true }
 
 [features]
 default = ["fs"]
