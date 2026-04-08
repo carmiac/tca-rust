@@ -50,7 +50,7 @@ pub struct StyleSet {
 }
 
 impl StyleSet {
-    /// Create a styleset from a theme name, with reasonable fallbacks.
+    /// Create a `StyleSet` from a theme name, with reasonable fallbacks.
     ///
     /// Accepts any common case format: `"Nord Dark"`, `"nord-dark"`, `"NordDark"`.
     #[cfg(feature = "fs")]
@@ -185,6 +185,7 @@ impl StyleSetCursor {
     }
 
     /// Advance to the next theme (wrapping) and return it as a [`StyleSet`].
+    #[allow(clippy::should_implement_trait)]
     pub fn next(&mut self) -> Option<StyleSet> {
         self.0.next().map(Into::into)
     }

@@ -4,7 +4,9 @@ use ratatui::style::Style;
 use tca_ratatui::TcaTheme;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let arg = env::args().nth(1).ok_or("Usage: basic path/to/theme.yaml")?;
+    let arg = env::args()
+        .nth(1)
+        .ok_or("Usage: basic path/to/theme.yaml")?;
     println!("Loading TCA theme from: {:?}", arg);
     let theme = TcaTheme::from_name(&arg);
 
