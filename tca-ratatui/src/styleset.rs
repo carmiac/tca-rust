@@ -11,6 +11,12 @@ use crate::TcaTheme;
 /// The main StyleSet struct with predefined styles as named fields
 #[derive(Debug, Clone)]
 pub struct StyleSet {
+    /// Human-readable theme name.
+    pub name: String,
+    /// Theme author name or contact. Empty string if not specified.
+    pub author: String,
+    /// `true` for dark themes, `false` for light themes.
+    pub is_dark: bool,
     /// The primary style for normal text and other elements.
     pub primary: Style,
     /// A secondary style, for sidebars or other secondary elements.
@@ -57,6 +63,7 @@ impl StyleSet {
     /// Fallback order:
     /// 1. User configured light theme.
     /// 2. Built-in default light theme.
+    #[cfg(feature = "fs")]
     pub fn from_default_light_cfg() -> Self {
         TcaTheme::from_default_light_cfg().into()
     }
@@ -75,6 +82,9 @@ impl StyleSet {
 impl From<TcaTheme> for StyleSet {
     fn from(value: TcaTheme) -> Self {
         StyleSet {
+            name: value.meta.name.clone(),
+            author: value.meta.author.clone(),
+            is_dark: value.meta.dark,
             primary: Style::default()
                 .bg(value.ui.bg_primary)
                 .fg(value.ui.fg_primary),
@@ -132,6 +142,7 @@ impl From<&TcaTheme> for StyleSet {
 ///
 /// Reads `$XDG_CONFIG_HOME/tca/tca.toml` if the `fs` feature is enabled.
 /// For a guaranteed no-I/O default, convert directly from a `BuiltinTheme`.
+#[cfg(feature = "fs")]
 impl Default for StyleSet {
     fn default() -> Self {
         TcaTheme::default().into()
@@ -186,11 +197,6 @@ impl StyleSetCursor {
     /// Move the cursor to the theme matching `name` (slug-insensitive).
     pub fn set_current(&mut self, name: &str) -> Option<StyleSet> {
         self.0.set_current(name).map(Into::into)
-    }
-
-    /// Returns the current cursor index.
-    pub fn index(&self) -> usize {
-        self.0.index()
     }
 
     /// Number of themes in the cursor.

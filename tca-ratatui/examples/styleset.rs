@@ -70,16 +70,24 @@ impl App {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(3), // title bar
+                Constraint::Length(5), // title bar
                 Constraint::Min(0),    // content
-                Constraint::Length(1), // status bar
             ])
             .split(area);
 
         // Title bar using primary style
-        let title = Paragraph::new("StyleSet Demo:  ← → cycle themes, Q quit")
-            .block(Block::default().borders(Borders::ALL).style(styles.border))
-            .style(styles.primary);
+        let title = Paragraph::new(vec![
+            Line::from(format!("Theme:   {}", styles.name)),
+            Line::from(format!("Author:  {}", styles.author)),
+            Line::from(format!("Is Dark: {}", styles.is_dark)),
+        ])
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("StyleSet Demo")
+                .style(styles.border),
+        )
+        .style(styles.primary);
         frame.render_widget(title, chunks[0]);
 
         // Content area: show all styles in a grid
@@ -166,15 +174,6 @@ impl App {
 
         frame.render_widget(left, content_chunks[0]);
         frame.render_widget(right, content_chunks[1]);
-
-        // Status bar
-        let status = Paragraph::new(format!(
-            " Theme {}/{} — ← → to cycle",
-            self.cursor.index() + 1,
-            self.cursor.len()
-        ))
-        .style(styles.muted);
-        frame.render_widget(status, chunks[2]);
     }
 }
 
