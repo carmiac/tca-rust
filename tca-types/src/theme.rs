@@ -422,43 +422,104 @@ impl Theme {
         Ok(theme)
     }
 
-    /// Creates a `Theme` from an optional name, searching in order:
+    /// Creates a `Theme` by name, searching in order:
     ///
     /// 1. User theme files (if `fs` feature enabled).
     /// 2. Built-in themes.
-    /// 3. User config default (if `fs` feature enabled).
-    /// 4. Built-in dark/light default based on terminal mode.
+    /// 3. Built-in default (if not found).
     ///
     /// The name is case-insensitive and accepts any common case format
     /// (`"Nord Dark"`, `"nord-dark"`, `"NordDark"` all work).
-    pub fn from_name(name: Option<&str>) -> Theme {
+    pub fn from_name(name: &str) -> Theme {
         use crate::BuiltinTheme;
         #[cfg(feature = "fs")]
         {
             use crate::util::load_theme_file;
-            use terminal_colorsaurus::{theme_mode, QueryOptions, ThemeMode};
-            name.and_then(|n| load_theme_file(n).ok())
+            load_theme_file(name)
+                .ok()
                 .as_deref()
                 .and_then(|s| Theme::from_base24_str(s).ok())
                 .or_else(|| {
-                    name.and_then(|n| {
-                        let slug = heck::AsKebabCase(n).to_string();
-                        slug.parse::<BuiltinTheme>().ok().map(|b| b.theme())
-                    })
+                    let slug = heck::AsKebabCase(name).to_string();
+                    slug.parse::<BuiltinTheme>().ok().map(|b| b.theme())
                 })
-                .or_else(|| {
-                    crate::util::mode_aware_theme_name()
-                        .and_then(|n| n.parse::<BuiltinTheme>().ok().map(|b| b.theme()))
-                })
-                .unwrap_or_else(|| match theme_mode(QueryOptions::default()).ok() {
-                    Some(ThemeMode::Light) => BuiltinTheme::default_light().theme(),
-                    _ => BuiltinTheme::default().theme(),
-                })
+                .unwrap_or_else(|| BuiltinTheme::default().theme())
         }
         #[cfg(not(feature = "fs"))]
         {
-            name.and_then(|n| n.parse::<BuiltinTheme>().ok().map(|b| b.theme()))
-                .unwrap_or_else(|| BuiltinTheme::default().theme())
+            let slug = heck::AsKebabCase(name).to_string();
+            slug.parse::<BuiltinTheme>()
+                .map(|b| b.theme())
+                .unwrap_or_else(|_| BuiltinTheme::default().theme())
+        }
+    }
+
+    /// Creates a `Theme` from the user's configured default.
+    ///
+    /// Reads `$XDG_CONFIG_HOME/tca/tca.toml` if the `fs` feature is enabled.
+    /// For a guaranteed no-I/O default, use `BuiltinTheme::default().theme()`.
+    ///
+    /// Fallback order:
+    /// 1. User config `default_theme` (if `fs` feature enabled).
+    /// 2. Built-in default.
+    pub fn from_default_cfg() -> Theme {
+        use crate::BuiltinTheme;
+        #[cfg(feature = "fs")]
+        {
+            use crate::TcaConfig;
+            match TcaConfig::load().tca.default_theme {
+                Some(name) => Theme::from_name(&name),
+                None => BuiltinTheme::default().theme(),
+            }
+        }
+        #[cfg(not(feature = "fs"))]
+        {
+            BuiltinTheme::default().theme()
+        }
+    }
+
+    /// Creates a dark `Theme` from the user's configured dark default.
+    ///
+    /// Fallback order:
+    /// 1. User config `default_dark_theme` (if `fs` feature enabled).
+    /// 2. Built-in default dark theme.
+    pub fn from_default_dark_cfg() -> Theme {
+        use crate::BuiltinTheme;
+        #[cfg(feature = "fs")]
+        {
+            use crate::TcaConfig;
+            match TcaConfig::load().tca.default_dark_theme {
+                Some(name) => Theme::from_name(&name),
+                None => BuiltinTheme::default().theme(),
+            }
+        }
+        #[cfg(not(feature = "fs"))]
+        {
+            BuiltinTheme::default().theme()
+        }
+    }
+
+    /// Creates a light `Theme` from the user's configured light default.
+    ///
+    /// Fallback order:
+    /// 1. User config `default_light_theme` (if `fs` feature enabled and theme is light).
+    /// 2. Built-in default light theme.
+    pub fn from_default_light_cfg() -> Theme {
+        use crate::BuiltinTheme;
+        #[cfg(feature = "fs")]
+        {
+            use crate::TcaConfig;
+            if let Some(name) = TcaConfig::load().tca.default_light_theme {
+                let theme = Theme::from_name(&name);
+                if !theme.meta.dark {
+                    return theme;
+                }
+            }
+            BuiltinTheme::default_light().theme()
+        }
+        #[cfg(not(feature = "fs"))]
+        {
+            BuiltinTheme::default_light().theme()
         }
     }
 
@@ -536,6 +597,18 @@ impl Theme {
     }
 }
 
+impl Default for Theme {
+    /// Returns the user's configured default theme, falling back to the built-in default.
+    ///
+    /// Reads `$XDG_CONFIG_HOME/tca/tca.toml` if the `fs` feature is enabled.
+    /// For a guaranteed no-I/O default, use `BuiltinTheme::default().theme()`.
+    fn default() -> Self {
+        Theme::from_default_cfg()
+    }
+}
+
+/// Two themes are equal if they have the same name slug, regardless of color values.
+/// This means `"Nord Dark"`, `"nord-dark"`, and `"nordDark"` are all considered equal.
 impl PartialEq for Theme {
     fn eq(&self, other: &Self) -> bool {
         self.name_slug() == other.name_slug()

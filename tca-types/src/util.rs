@@ -140,24 +140,3 @@ pub fn load_theme_file(path_or_name: &str) -> Result<String> {
         user_themes_path()?,
     ))
 }
-
-#[cfg(feature = "fs")]
-pub fn mode_aware_theme_name() -> Option<String> {
-    use crate::config::TcaConfig;
-    use terminal_colorsaurus::{theme_mode, QueryOptions, ThemeMode};
-    let cfg = TcaConfig::load();
-
-    match theme_mode(QueryOptions::default()).ok() {
-        Some(ThemeMode::Dark) => cfg
-            .tca
-            .default_dark_theme
-            .clone()
-            .or(cfg.tca.default_theme.clone()),
-        Some(ThemeMode::Light) => cfg
-            .tca
-            .default_light_theme
-            .clone()
-            .or(cfg.tca.default_theme.clone()),
-        None => cfg.tca.default_theme.clone(),
-    }
-}

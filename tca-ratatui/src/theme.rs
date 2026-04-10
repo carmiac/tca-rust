@@ -4,9 +4,6 @@ use ratatui::style::Color;
 #[cfg(feature = "fs")]
 use std::path::PathBuf;
 
-#[cfg(feature = "fs")]
-use tca_types::BuiltinTheme;
-
 /// Theme metadata.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Meta {
@@ -233,17 +230,10 @@ impl TcaTheme {
     /// The search fallback order is:
     /// 1. Local theme files.
     /// 2. Built in themes.
-    /// 3. Built in default light/dark mode theme based on current terminal mode.
+    /// 3. Built in default dark mode theme.
     #[cfg(feature = "fs")]
-    pub fn new(name: Option<&str>) -> Self {
-        TcaTheme::try_from(tca_types::Theme::from_name(name)).unwrap_or_else(|_| {
-            use terminal_colorsaurus::{theme_mode, QueryOptions, ThemeMode};
-            let builtin = match theme_mode(QueryOptions::default()).ok() {
-                Some(ThemeMode::Light) => BuiltinTheme::default_light(),
-                _ => BuiltinTheme::default(),
-            };
-            TcaTheme::try_from(builtin.theme()).expect("hardcoded default must be valid")
-        })
+    pub fn from_name(name: &str) -> Self {
+        TcaTheme::try_from(tca_types::Theme::from_name(name)).expect("theme conversion failed")
     }
     /// Returns the canonical name slug for the theme.
     ///
@@ -278,12 +268,23 @@ impl TcaTheme {
         path.push(self.to_filename());
         Ok(path)
     }
+
+    /// Get a light theme from user config, falling back to the built-in light default.
+    #[cfg(feature = "fs")]
+    pub fn from_default_light_cfg() -> Self {
+        TcaTheme::try_from(tca_types::Theme::from_default_light_cfg())
+            .expect("theme conversion failed")
+    }
 }
 
 #[cfg(feature = "fs")]
 impl Default for TcaTheme {
+    /// Returns the user's configured default theme, falling back to the built-in default.
+    ///
+    /// Reads `$XDG_CONFIG_HOME/tca/tca.toml` if the `fs` feature is enabled.
+    /// For a guaranteed no-I/O default, use `TcaTheme::try_from(BuiltinTheme::default().theme())`.
     fn default() -> Self {
-        TcaTheme::new(None)
+        TcaTheme::try_from(tca_types::Theme::from_default_cfg()).expect("theme conversion failed")
     }
 }
 
@@ -521,6 +522,7 @@ fn parse_ansi(raw: &tca_types::Ansi) -> Result<Ansi> {
 /// let second = cursor.next().unwrap();
 /// ```
 #[cfg(feature = "fs")]
+#[derive(Debug)]
 pub struct TcaThemeCursor(tca_types::ThemeCursor<TcaTheme>);
 
 #[cfg(feature = "fs")]
@@ -590,6 +592,11 @@ impl TcaThemeCursor {
     /// Returns `true` if the cursor contains no themes.
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
+    }
+
+    /// Returns the current cursor index.
+    pub fn index(&self) -> usize {
+        self.0.index()
     }
 
     /// Moves the cursor to the theme matching `name` (slug-insensitive) and returns it.

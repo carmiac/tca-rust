@@ -3,23 +3,79 @@
 //! This crate provides utilities for loading and using TCA themes in ratatui applications.
 //! Themes are [base24](https://github.com/tinted-theming/base24/) YAML files.
 //!
-//! ## Quick Start
+//! ## Quick Start - StyleSet
+//!
+//! The easiest way to theme a ratatui app is with [`StyleSet`]. It pre-builds all the
+//! common [`ratatui::style::Style`]s you need from the user's configured theme.
+//!
+//! ```rust,no_run
+//! use tca_ratatui::StyleSet;
+//! use ratatui::widgets::{Block, Borders, Paragraph};
+//!
+//! fn render(frame: &mut ratatui::Frame) {
+//!     let styles = StyleSet::default(); // user's configured theme, or built-in fallback
+//!
+//!     let block = Block::default()
+//!         .borders(Borders::ALL)
+//!         .style(styles.border);
+//!
+//!     let text = Paragraph::new("Hello, world!")
+//!         .block(block)
+//!         .style(styles.primary);
+//!
+//!     frame.render_widget(text, frame.area());
+//! }
+//! ```
+//!
+//! Load by name, or cycle through available themes with [`StyleSetCursor`]:
+//!
+//! ```rust,no_run
+//! use tca_ratatui::{StyleSet, StyleSetCursor};
+//!
+//! // Load a specific theme by name (any case format works)
+//! let styles = StyleSet::from_name("tokyo-night");
+//! let styles = StyleSet::from_name("Tokyo Night");
+//!
+//! // Cycle through all installed + built-in themes
+//! let mut cursor = StyleSetCursor::with_all_themes();
+//! cursor.next();
+//! cursor.prev();
+//! cursor.set_current("nord-dark");
+//! let styles = cursor.peek().unwrap_or_default();
+//! ```
+//!
+//! ## Lower-Level Access - TcaTheme
+//!
+//! For direct access to typed colors (e.g. for custom [`ratatui::style::Style`] composition),
+//! use [`TcaTheme`] directly:
 //!
 //! ```rust,no_run
 //! use tca_ratatui::TcaTheme;
 //! use ratatui::style::Style;
 //!
 //! fn example() {
-//! // Load a TCA theme from a file or name, with reasonable fallback.
-//! let theme = TcaTheme::new(Some("theme.yaml"));
-//! let theme = TcaTheme::new(Some("Tokyo Night"));
-//! let theme = TcaTheme::new(Some("tokyo-night"));
-//! let theme = TcaTheme::new(None);
+//!     let theme = TcaTheme::from_name("tokyo-night");
+//!     let theme = TcaTheme::default(); // user's configured default
 //!
-//! // Or from a base24 YAML string.
-//! let yaml = r#"
-//! scheme: "Tokyo Night"
-//! author: "enkia / TCA Project"
+//!     // ANSI, semantic, and UI colors are all resolved
+//!     let error_style = Style::default().fg(theme.semantic.error);
+//!     let bg_style = Style::default().bg(theme.ui.bg_primary);
+//!     let red = theme.ansi.red;
+//!
+//!     // Raw base24 slots
+//!     let base00 = theme.base24[0]; // darkest background
+//! }
+//! ```
+//!
+//! ## Parsing from YAML
+//!
+//! ```rust,no_run
+//! use tca_ratatui::TcaTheme;
+//!
+//! fn example() {
+//!     let yaml = r#"
+//! scheme: "My Theme"
+//! author: "You"
 //! variant: "dark"
 //! base00: "1a1b26"
 //! base01: "16161e"
@@ -46,28 +102,13 @@
 //! base16: "7aa2f7"
 //! base17: "bb9af7"
 //! "#;
-//! let theme = TcaTheme::try_from(yaml).expect("Couldn't parse YAML");
-//!
-//! // Use ANSI colors
-//! let error_style = Style::default().fg(theme.ansi.red);
-//! let success_style = Style::default().fg(theme.ansi.green);
-//!
-//! // Use semantic colors
-//! let error_style = Style::default().fg(theme.semantic.error);
-//! let warning_style = Style::default().fg(theme.semantic.warning);
-//!
-//! // Use UI colors
-//! let bg_style = Style::default().bg(theme.ui.bg_primary);
-//! let fg_style = Style::default().fg(theme.ui.fg_primary);
-//!
-//! // Access raw base24 slots directly
-//! let base00 = theme.base24[0]; // darkest background
-//! let base08 = theme.base24[8]; // red / errors
+//!     let theme = TcaTheme::try_from(yaml).expect("Couldn't parse YAML");
 //! }
 //! ```
 
 #![warn(missing_docs)]
 
+mod styleset;
 mod theme;
 
 #[cfg(feature = "widgets")]
@@ -76,6 +117,10 @@ pub mod widgets;
 #[cfg(test)]
 mod tests;
 
+pub use styleset::StyleSet;
+
+#[cfg(feature = "fs")]
+pub use styleset::StyleSetCursor;
 pub use theme::{Ansi, Meta, Semantic, TcaTheme, TcaThemeBuilder, Ui};
 
 #[cfg(feature = "fs")]
