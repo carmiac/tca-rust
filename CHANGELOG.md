@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.7.0]
+
+### Changed
+
+- Breaking Change! Public API cleanup, constructors are now much more idiomatic
+
+### Added
+
+- Added `StyleSets`. Get all the Ratatui Styles you need in one call.
+
+### Removed
+
+- Light/Dark mode detection. It could break crossterm, so removed for now.
+
 ## [0.6.0]
 
 ### Changed
@@ -16,7 +30,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-- `Theme::from_base24_str()` — parse a base24 YAML string into a fully resolved `Theme`.
+- `Theme::from_base24_str()` - parse a base24 YAML string into a fully resolved `Theme`.
 - Built-in themes converted to base24 YAML.
 
 ### Removed
@@ -85,7 +99,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Initial Release
 
-[Unreleased]: https://github.com/carmiac/tca-rust/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/carmiac/tca-rust/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/carmiac/tca-rust/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/carmiac/tca-rust/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/carmiac/tca-rust/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/carmiac/tca-rust/compare/v0.3.0...v0.4.0

@@ -136,10 +136,10 @@ TcaTheme
 
 ```toml
 # Builder-only, no file I/O or widgets
-tca-ratatui = { version = "0.6", default-features = false }
+tca-ratatui = { version = "0.7", default-features = false }
 
 # File I/O only, no widgets
-tca-ratatui = { version = "0.6", features = ["fs"] }
+tca-ratatui = { version = "0.7", features = ["fs"] }
 ```
 
 ## Examples
